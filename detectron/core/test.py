@@ -159,7 +159,9 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
 
     # Names for output blobs
     rois_name = 'rois'
-    cls_prob_name = 'cls_prob'
+    # rois_name='rois_fine_cls'
+    super_cls_prob_name = 'cls_prob'
+    cls_prob_name = 'fine_cls_prob'
     bbox_pred_name = 'bbox_pred'
     # bbox regression weights
     bbox_reg_weights = cfg.MODEL.BBOX_REG_WEIGHTS
@@ -191,6 +193,14 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
     scores = scores.reshape([-1, scores.shape[-1]])
     scores *= score_rescalar
 
+    super_cls_scores = workspace.FetchBlob(core.ScopedName(super_cls_prob_name)).squeeze()
+    super_cls_scores = super_cls_scores.reshape([-1, super_cls_scores.shape[-1]])
+    pred_super_cls=np.argmax((super_cls_scores),1)
+    pred_super_cls_score = np.max((super_cls_scores), 1)
+
+    sel_ind=np.where((pred_super_cls<1))
+    # sel_ind=np.where((pred_super_cls_score[sel_ind]>0.))
+    scores[sel_ind,:]=0
     if cfg.TEST.BBOX_REG:
         # Apply bounding-box regression deltas
         box_deltas = workspace.FetchBlob(core.ScopedName(bbox_pred_name)).squeeze()

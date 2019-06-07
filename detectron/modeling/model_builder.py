@@ -47,6 +47,7 @@ from detectron.modeling.detector import DetectionModelHelper
 from detectron.roi_data.loader import RoIDataLoader
 import detectron.modeling.fast_rcnn_heads as fast_rcnn_heads
 import detectron.modeling.cascade_rcnn_heads as cascade_rcnn_heads
+
 import detectron.modeling.keypoint_rcnn_heads as keypoint_rcnn_heads
 import detectron.modeling.mask_rcnn_heads as mask_rcnn_heads
 import detectron.modeling.name_compat as name_compat
@@ -57,6 +58,7 @@ import detectron.modeling.rpn_heads as rpn_heads
 import detectron.roi_data.minibatch as roi_data_minibatch
 import detectron.utils.c2 as c2_utils
 
+import detectron.modeling.fine_cls_heads as fine_cls_heads
 logger = logging.getLogger(__name__)
 
 
@@ -88,7 +90,8 @@ def generalized_rcnn(model):
         add_roi_cascade_head_func=get_func(cfg.CASCADE_RCNN.ROI_BOX_HEAD),
         add_roi_mask_head_func=get_func(cfg.MRCNN.ROI_MASK_HEAD),
         add_roi_keypoint_head_func=get_func(cfg.KRCNN.ROI_KEYPOINTS_HEAD),
-        freeze_conv_body=cfg.TRAIN.FREEZE_CONV_BODY
+        freeze_conv_body=cfg.TRAIN.FREEZE_CONV_BODY,
+        add_roi_fine_cls_head_func=get_func(cfg.FINE_CLS.ROI_BOX_HEAD)
     )
 
 
@@ -178,7 +181,8 @@ def build_generic_detection_model(
     add_roi_cascade_head_func=None,
     add_roi_mask_head_func=None,
     add_roi_keypoint_head_func=None,
-    freeze_conv_body=False
+    freeze_conv_body=False,
+    add_roi_fine_cls_head_func=None,
 ):
     def _single_gpu_build_func(model):
         """Build the model on a single GPU. Can be called in a loop over GPUs
@@ -222,6 +226,13 @@ def build_generic_detection_model(
                 model, add_roi_box_head_func, blob_conv, dim_conv,
                 spatial_scale_conv
             )
+            if cfg.MODEL.FINE_CLS_ON:
+
+                head_loss_gradients['fine_cls'] = _add_fine_cls_head(
+                    model, add_roi_fine_cls_head_func, blob_conv, dim_conv,
+                    spatial_scale_conv
+                )
+
             if cfg.MODEL.CASCADE_ON:
                 # Add the Cascade R-CNN head
                 num_stage = cfg.CASCADE_RCNN.NUM_STAGE
@@ -280,6 +291,7 @@ def _add_fast_rcnn_head(
     model, add_roi_box_head_func, blob_in, dim_in, spatial_scale_in
 ):
     """Add a Fast R-CNN head to the model."""
+
     blob_frcn, dim_frcn = add_roi_box_head_func(
         model, blob_in, dim_in, spatial_scale_in
     )
@@ -290,6 +302,20 @@ def _add_fast_rcnn_head(
         loss_gradients = None
     return loss_gradients
 
+def _add_fine_cls_head(
+    model, add_roi_fine_cls_head_func, blob_in, dim_in, spatial_scale_in
+):
+    """Add a Fast R-CNN head to the model."""
+    fine_cls_heads.add_fine_cls_inputs(model)
+    blob_frcn, dim_frcn = add_roi_fine_cls_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    fine_cls_heads.add_fine_cls_outputs(model, blob_frcn, dim_frcn)
+    if model.train:
+        loss_gradients = fine_cls_heads.add_fine_cls_losses(model)
+    else:
+        loss_gradients = None
+    return loss_gradients
 
 def _check_for_cascade_rcnn():
     assert cfg.MODEL.CLS_AGNOSTIC_BBOX_REG

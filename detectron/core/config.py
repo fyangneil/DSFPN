@@ -450,6 +450,8 @@ __C.MODEL.CONV_BODY = b''
 # E.g., 81 for COCO (80 foreground + 1 background)
 __C.MODEL.NUM_CLASSES = -1
 
+__C.MODEL.NUM_SUPERCLASSES = -1
+
 # Use a class agnostic bounding box regressor instead of the default per-class
 # regressor
 __C.MODEL.CLS_AGNOSTIC_BBOX_REG = False
@@ -488,6 +490,7 @@ __C.MODEL.RPN_ONLY = False
 # Use 'prof_dag' to get profiling statistics
 __C.MODEL.EXECUTION_TYPE = b'dag'
 
+__C.MODEL.FINE_CLS_ON=False
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
@@ -664,6 +667,12 @@ __C.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO = 0
 # pretrained FC layers like in VGG16, and will ignore this option
 __C.FAST_RCNN.ROI_XFORM_RESOLUTION = 14
 
+# ---------------------------------------------------------------------------- #
+# Fine cls options
+# ---------------------------------------------------------------------------- #
+__C.FINE_CLS = AttrDict()
+__C.FINE_CLS.ROI_BOX_HEAD=b''
+__C.FINE_CLS.NUM_CLASSES=-1
 
 # ---------------------------------------------------------------------------- #
 # Cascade R-CNN options

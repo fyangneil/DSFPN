@@ -60,6 +60,7 @@ class DecodeBBoxesOp(object):
         outputs[0].data[...] = bbox_decode
 
 
+
 def _filter_boxes(boxes, max_overlap):
     """Only keep boxes with positive height and width, and not-gt.
     """
