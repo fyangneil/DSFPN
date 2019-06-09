@@ -38,8 +38,10 @@ from detectron.ops.generate_proposals import GenerateProposalsOp
 from detectron.ops.decode_bboxes import DecodeBBoxesOp
 from detectron.ops.bbox_accuracy import BBoxAccuracyOp
 from detectron.ops.add_fine_cls import AddFineClsOp
+from detectron.ops.add_super_cls import AddSuperClsOp
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 import detectron.roi_data.fine_cls as fine_cls_roi_data
+import detectron.roi_data.super_cls as super_cls_roi_data
 import detectron.roi_data.cascade_rcnn as cascade_rcnn_roi_data
 import detectron.utils.c2 as c2_utils
 
@@ -229,13 +231,35 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         outputs = self.net.Python(
             CollectAndDistributeFpnRpnProposalsOp(self.train).forward
         )(blobs_in, blobs_out, name=name)
+        return outputs
+
+
+    def AddSuperCls(self):
+
+        blobs_in = ['rois']
+        if self.train:
+            blobs_in += ['labels_int32']
+        blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
+        name = 'AddSuperClsOp:' + ','.join(
+            [str(b) for b in blobs_in]
+        )
+
+        # Prepare output blobs
+        blobs_out = super_cls_roi_data.get_super_cls_blob_names(
+            is_training=self.train
+        )
+        blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
+
+        outputs = self.net.Python(
+            AddSuperClsOp(self.train).forward
+        )(blobs_in, blobs_out, name=name)
 
         return outputs
-    def AddFineCls(self):
 
-        blobs_in = ['cls_prob','rois']
+    def AddFineCls(self):
+        blobs_in = ['super_cls_prob','rois']
         if self.train:
-            blobs_in += ['orig_labels_int32']
+            blobs_in += ['labels_int32']
         blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
         name = 'AddFineClsOp:' + ','.join(
             [str(b) for b in blobs_in]
@@ -252,6 +276,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         )(blobs_in, blobs_out, name=name)
 
         return outputs
+
 
     def DecodeBBoxes(self, blobs_in, blobs_out, bbox_reg_weights):
         """Op for decoding bboxes. Only support class-agnostic bbox regression.

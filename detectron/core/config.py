@@ -492,6 +492,8 @@ __C.MODEL.EXECUTION_TYPE = b'dag'
 
 __C.MODEL.FINE_CLS_ON=False
 
+__C.MODEL.SUPER_CLS_ON=False
+
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
 # ---------------------------------------------------------------------------- #
@@ -666,6 +668,14 @@ __C.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO = 0
 # Note: some models may have constraints on what they can use, e.g. they use
 # pretrained FC layers like in VGG16, and will ignore this option
 __C.FAST_RCNN.ROI_XFORM_RESOLUTION = 14
+
+# ---------------------------------------------------------------------------- #
+# Super cls options
+# ---------------------------------------------------------------------------- #
+__C.SUPER_CLS = AttrDict()
+__C.SUPER_CLS.ROI_BOX_HEAD=b''
+__C.SUPER_CLS.NUM_CLASSES=-1
+
 
 # ---------------------------------------------------------------------------- #
 # Fine cls options

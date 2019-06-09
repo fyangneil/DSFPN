@@ -59,6 +59,7 @@ import detectron.roi_data.minibatch as roi_data_minibatch
 import detectron.utils.c2 as c2_utils
 
 import detectron.modeling.fine_cls_heads as fine_cls_heads
+import detectron.modeling.super_cls_heads as super_cls_heads
 logger = logging.getLogger(__name__)
 
 
@@ -91,6 +92,7 @@ def generalized_rcnn(model):
         add_roi_mask_head_func=get_func(cfg.MRCNN.ROI_MASK_HEAD),
         add_roi_keypoint_head_func=get_func(cfg.KRCNN.ROI_KEYPOINTS_HEAD),
         freeze_conv_body=cfg.TRAIN.FREEZE_CONV_BODY,
+        add_roi_super_cls_head_func=get_func(cfg.SUPER_CLS.ROI_BOX_HEAD),
         add_roi_fine_cls_head_func=get_func(cfg.FINE_CLS.ROI_BOX_HEAD)
     )
 
@@ -182,6 +184,7 @@ def build_generic_detection_model(
     add_roi_mask_head_func=None,
     add_roi_keypoint_head_func=None,
     freeze_conv_body=False,
+    add_roi_super_cls_head_func=None,
     add_roi_fine_cls_head_func=None,
 ):
     def _single_gpu_build_func(model):
@@ -226,12 +229,17 @@ def build_generic_detection_model(
                 model, add_roi_box_head_func, blob_conv, dim_conv,
                 spatial_scale_conv
             )
-            if cfg.MODEL.FINE_CLS_ON:
-
-                head_loss_gradients['fine_cls'] = _add_fine_cls_head(
-                    model, add_roi_fine_cls_head_func, blob_conv, dim_conv,
+            if cfg.MODEL.SUPER_CLS_ON:
+                head_loss_gradients['super_cls'] = _add_super_cls_head(
+                    model, add_roi_super_cls_head_func, blob_conv, dim_conv,
                     spatial_scale_conv
                 )
+                if cfg.MODEL.FINE_CLS_ON:
+                    head_loss_gradients['fine_cls'] = _add_fine_cls_head(
+                        model, add_roi_fine_cls_head_func, blob_conv, dim_conv,
+                        spatial_scale_conv
+                    )
+
 
             if cfg.MODEL.CASCADE_ON:
                 # Add the Cascade R-CNN head
@@ -301,6 +309,21 @@ def _add_fast_rcnn_head(
     else:
         loss_gradients = None
     return loss_gradients
+def _add_super_cls_head(
+    model, add_roi_super_cls_head_func, blob_in, dim_in, spatial_scale_in
+):
+    """Add a Fast R-CNN head to the model."""
+    super_cls_heads.add_super_cls_inputs(model)
+    blob_frcn, dim_frcn = add_roi_super_cls_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    super_cls_heads.add_super_cls_outputs(model, blob_frcn, dim_frcn)
+    if model.train:
+        loss_gradients = super_cls_heads.add_super_cls_losses(model)
+    else:
+        loss_gradients = None
+    return loss_gradients
+
 
 def _add_fine_cls_head(
     model, add_roi_fine_cls_head_func, blob_in, dim_in, spatial_scale_in

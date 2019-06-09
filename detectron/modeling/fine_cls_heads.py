@@ -52,7 +52,7 @@ def add_fine_cls_outputs(model, blob_in, dim):
         blob_in,
         'fine_cls_score',
         dim,
-        cfg.FINE_CLS.NUM_CLASSES,#model.num_classes,
+        cfg.FINE_CLS.NUM_CLASSES,
         weight_init=gauss_fill(0.01),
         bias_init=const_fill(0.0)
     )

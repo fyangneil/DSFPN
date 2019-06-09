@@ -141,25 +141,25 @@ def _sample_rois(rois, prob, label):
     """
     pred_label=np.argmax((prob),1)
 
-    sel_ind=np.where((pred_label==2)|(pred_label==1))[0]
+    sel_ind=np.where((pred_label>0))[0]
     sel_ind_label=np.where((label>0))[0]
     sel_ind=np.unique(np.concatenate((sel_ind_label, sel_ind)))
 
     # resample selected rois
-    sel_roi_num=len(sel_ind)
-    roi_num = len(pred_label)
-    thr=0.5
-    if sel_roi_num==-1:
-        # print(sel_roi_num)
-        max_prob=np.max((prob), 1)
-        # print(max_prob.size)
-        sel_ind = np.where((max_prob<thr))[0]
-        sel_roi_num = len(sel_ind)
-        while sel_roi_num==0:
-            # print(thr)
-            thr=thr+0.1
-            sel_ind = np.where((max_prob < thr))[0]
-            sel_roi_num=len(sel_ind)
+    # sel_roi_num=len(sel_ind)
+    # roi_num = len(pred_label)
+    # thr=0.5
+    # if sel_roi_num==-1:
+    #     # print(sel_roi_num)
+    #     max_prob=np.max((prob), 1)
+    #     # print(max_prob.size)
+    #     sel_ind = np.where((max_prob<thr))[0]
+    #     sel_roi_num = len(sel_ind)
+    #     while sel_roi_num==0:
+    #         # print(thr)
+    #         thr=thr+0.1
+    #         sel_ind = np.where((max_prob < thr))[0]
+    #         sel_roi_num=len(sel_ind)
 
 
         # print(sel_roi_num)
@@ -188,7 +188,7 @@ def _sample_rois(rois, prob, label):
     sampled_rois=rois[sel_ind,:]
     sampled_labels=label[sel_ind]
     # print('orig_sampled_labels 2',sampled_labels)
-    sampled_labels[sampled_labels>9]=1
+    # sampled_labels[sampled_labels>9]=1
     # print(sampled_labels)
     # Base Fast R-CNN blobs
     blob_dict = dict(

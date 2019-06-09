@@ -38,38 +38,28 @@ from detectron.utils.c2 import gauss_fill
 from detectron.utils.net import get_group_gn
 import detectron.utils.blob as blob_utils
 
-
+def add_super_cls_inputs(model):
+    model.AddSuperCls()
 # ---------------------------------------------------------------------------- #
 # Fast R-CNN outputs and losses
 # ---------------------------------------------------------------------------- #
 
-def add_fast_rcnn_outputs(model, blob_in, dim):
+def add_super_cls_outputs(model, blob_in, dim):
     """Add RoI classification and bounding box regression output ops."""
     # Box classification layer
     model.FC(
         blob_in,
-        'cls_score',
+        'super_cls_score',
         dim,
-        model.num_classes,
+        cfg.SUPER_CLS.NUM_CLASSES,
         weight_init=gauss_fill(0.01),
         bias_init=const_fill(0.0)
     )
-    if not model.train :  # == if test
+    if not model.train or cfg.MODEL.FINE_CLS_ON:  # == if test
         # Only add softmax when testing; during training the softmax is combined
         # with the label cross entropy loss for numerical stability
-        model.Softmax('cls_score', 'cls_prob', engine='CUDNN')
-    # Box regression layer
-    num_bbox_reg_classes = (
-        2 if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG else model.num_classes
-    )
-    model.FC(
-        blob_in,
-        'bbox_pred',
-        dim,
-        num_bbox_reg_classes * 4,
-        weight_init=gauss_fill(0.001),
-        bias_init=const_fill(0.0)
-    )
+        model.Softmax('super_cls_score', 'super_cls_prob', engine='CUDNN')
+
 
     if cfg.MODEL.CASCADE_ON:
         # add stage parameters to list
@@ -80,32 +70,20 @@ def add_fast_rcnn_outputs(model, blob_in, dim):
             model.stage_params['1'].append(model.biases[idx])
 
 
-def add_fast_rcnn_losses(model):
+def add_super_cls_losses(model):
     """Add losses for RoI classification and bounding box regression."""
     loss_scalar = 1.0
     if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_LOSS:
         loss_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
-    cls_prob, loss_cls = model.net.SoftmaxWithLoss(
-        ['cls_score', 'labels_int32'], ['cls_prob', 'loss_cls'],
+    super_cls_prob, loss_super_cls = model.net.SoftmaxWithLoss(
+        ['super_cls_score', 'labels_int32_super_cls'], ['super_cls_prob', 'loss_super_cls'],
         scale=model.GetLossScale() * loss_scalar
     )
-    loss_bbox = model.net.SmoothL1Loss(
-        [
-            'bbox_pred', 'bbox_targets', 'bbox_inside_weights',
-            'bbox_outside_weights'
-        ],
-        'loss_bbox',
-        scale=model.GetLossScale() * loss_scalar
-    )
-    loss_gradients = blob_utils.get_loss_gradients(model, [loss_cls, loss_bbox])
-    model.Accuracy(['cls_prob', 'labels_int32'], 'accuracy_cls')
-    model.AddLosses(['loss_cls', 'loss_bbox'])
-    model.AddMetrics('accuracy_cls')
-    bbox_reg_weights = cfg.MODEL.BBOX_REG_WEIGHTS
-    model.AddBBoxAccuracy(
-        ['bbox_pred', 'rois', 'labels_int32', 'mapped_gt_boxes'],
-        ['bbox_iou', 'bbox_iou_pre'], bbox_reg_weights)
-    model.AddMetrics(['bbox_iou', 'bbox_iou_pre'])
+
+    loss_gradients = blob_utils.get_loss_gradients(model, [loss_super_cls])
+    model.Accuracy(['super_cls_prob', 'labels_int32_super_cls'], 'accuracy_super_cls')
+    model.AddLosses(['loss_super_cls'])
+    model.AddMetrics('accuracy_super_cls')
     return loss_gradients
 
 
@@ -119,8 +97,8 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
     roi_feat = model.RoIFeatureTransform(
         blob_in,
-        'roi_feat',
-        blob_rois='rois',
+        'super_cls_roi_feat',
+        blob_rois='super_cls_rois',
         method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
         resolution=roi_size,
         sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
@@ -134,10 +112,10 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
             roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
         )
 
-    model.FC(roi_feat, 'fc6', dim_in * roi_size * roi_size, hidden_dim)
-    model.Relu('fc6', 'fc6')
-    model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
-    model.Relu('fc7', 'fc7')
+    model.FC(roi_feat, 'fc6_super_cls', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6_super_cls', 'fc6_super_cls')
+    model.FC('fc6_super_cls', 'fc7_super_cls', hidden_dim, hidden_dim)
+    model.Relu('fc7_super_cls', 'fc7_super_cls')
     if cfg.MODEL.CASCADE_ON:
         # add stage parameters to list
         if '1' not in model.stage_params:
@@ -145,7 +123,7 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
         for idx in range(-2, 0):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
-    return 'fc7', hidden_dim
+    return 'fc7_super_cls', hidden_dim
 
 
 def add_roi_Xconv1fc_head(model, blob_in, dim_in, spatial_scale):
