@@ -111,7 +111,6 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
         model.net.Scale(
             roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
         )
-
     model.FC(roi_feat, 'fc6_super_cls', dim_in * roi_size * roi_size, hidden_dim)
     model.Relu('fc6_super_cls', 'fc6_super_cls')
     model.FC('fc6_super_cls', 'fc7_super_cls', hidden_dim, hidden_dim)
