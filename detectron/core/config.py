@@ -452,6 +452,7 @@ __C.MODEL.NUM_CLASSES = -1
 
 __C.MODEL.NUM_SUPERCLASSES = -1
 
+
 # Use a class agnostic bounding box regressor instead of the default per-class
 # regressor
 __C.MODEL.CLS_AGNOSTIC_BBOX_REG = False
@@ -675,8 +676,10 @@ __C.FAST_RCNN.ROI_XFORM_RESOLUTION = 14
 __C.SUPER_CLS = AttrDict()
 __C.SUPER_CLS.ROI_BOX_HEAD=b''
 __C.SUPER_CLS.NUM_CLASSES=-1
-
-
+__C.SUPER_CLS.START_CLS=-1
+__C.SUPER_CLS.END_CLS=-1
+__C.SUPER_CLS.SEL_CLS=(-1,)
+__C.SUPER_CLS.TEST_ENSEMBLE=False
 # ---------------------------------------------------------------------------- #
 # Fine cls options
 # ---------------------------------------------------------------------------- #

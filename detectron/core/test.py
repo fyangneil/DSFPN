@@ -47,6 +47,8 @@ import detectron.utils.image as image_utils
 import detectron.utils.keypoints as keypoint_utils
 
 from functools import reduce
+super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
+                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80]}
 logger = logging.getLogger(__name__)
 
 
@@ -162,10 +164,7 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
     rois_name = 'rois'
     # rois_name='rois_fine_cls'
     cls_prob_name = 'cls_prob'
-    if cfg.MODEL.SUPER_CLS_ON:
-        super_cls_prob_name='super_cls_prob'
-    if cfg.MODEL.FINE_CLS_ON:
-        fine_cls_prob_name = 'fine_cls_prob'
+
     bbox_pred_name = 'bbox_pred'
     # bbox regression weights
     bbox_reg_weights = cfg.MODEL.BBOX_REG_WEIGHTS
@@ -199,50 +198,53 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
 
     pred_cls = np.argmax((scores), 1)
     pred_cls_score = np.max((scores), 1)
+    ind1 = np.where((pred_cls > 0))[0]
+    ind2 = np.where((pred_cls_score > 0.0))[0]
+    cls_ind = np.intersect1d(ind1, ind2)
+    pred_cls_score = np.reshape(pred_cls_score, (pred_cls_score.size, -1))
 
     if cfg.MODEL.SUPER_CLS_ON:
-        super_cls_scores = workspace.FetchBlob(core.ScopedName(super_cls_prob_name)).squeeze()
-        super_cls_scores = super_cls_scores.reshape([-1, super_cls_scores.shape[-1]])
-        pred_super_cls=np.argmax((super_cls_scores),1)
-        pred_super_cls_score = np.max((super_cls_scores), 1)
+        for cat in cfg.SUPER_CLS.SEL_CLS:
+            super_cls_prob_name='super_cls_{}_prob'.format(cat)
+            super_cls_scores = workspace.FetchBlob(core.ScopedName(super_cls_prob_name)).squeeze()
+            super_cls_scores = super_cls_scores.reshape([-1, super_cls_scores.shape[-1]])
+            pred_super_cls=np.argmax((super_cls_scores),1)
+            # convert to fine cls label
+            start_cls = super2fine_map[cat][0]
+            end_cls = super2fine_map[cat][1]
+            pred_super_cls[pred_super_cls>0]=pred_super_cls[pred_super_cls>0]+start_cls-1
+            non_sel=np.where((pred_super_cls<start_cls)|(pred_super_cls>end_cls))[0]
+            pred_super_cls[non_sel]=0
+
+
+            pred_super_cls_score = np.max((super_cls_scores), 1)
+            ind1 = np.where((pred_super_cls > 0))[0]
+            ind2 = np.where((pred_super_cls_score > 0.0))[0]
+            super_cls_ind = np.intersect1d(ind1, ind2)
+
+            if cfg.SUPER_CLS.TEST_ENSEMBLE:
+                ind3 = np.where((pred_super_cls == pred_cls))[0]
+                ind = reduce(np.intersect1d, (super_cls_ind, cls_ind, ind3))
+
+                # print('cls', pred_cls[ind])
+                # print('cls_score', pred_cls_score[ind])
+                # print('fine cls', pred_fine_cls[ind])
+                # print('fine cls_score', pred_fine_cls_score[ind])
+
+                pred_super_cls_score = np.reshape(pred_super_cls_score, (pred_super_cls_score.size, -1))
+
+                final_cls_scores = np.concatenate((pred_cls_score, pred_super_cls_score), axis=1)
+                final_cls_scores = np.max(final_cls_scores, axis=1)
+                scores[ind, pred_cls[ind]] = final_cls_scores[ind]
+
+
+
 
     if cfg.MODEL.FINE_CLS_ON:
         fine_cls_scores = workspace.FetchBlob(core.ScopedName(fine_cls_prob_name)).squeeze()
         fine_cls_scores = fine_cls_scores.reshape([-1, fine_cls_scores.shape[-1]])
         pred_fine_cls = np.argmax((fine_cls_scores), 1)
         pred_fine_cls_score = np.max((fine_cls_scores), 1)
-
-    # fine_cls_scores[pred_super_cls==0,:]=0
-    # ind1=np.where((pred_fine_cls > 0))[0]
-    # ind2=np.where((pred_fine_cls_score>0.95))[0]
-    # fine_cls_ind=np.intersect1d(ind1,ind2)
-    # fine_cls_ind=np.unique(np.concatenate((ind1,ind2),axis=0))
-    # sel_pred_fine_cls=pred_fine_cls[fine_cls_ind]
-
-    ind1=np.where((pred_super_cls > 0))[0]
-    ind2=np.where((pred_super_cls_score>0.0))[0]
-    super_cls_ind=np.intersect1d(ind1,ind2)
-
-    ind1 = np.where((pred_cls > 0))[0]
-    ind2 = np.where((pred_cls_score > 0.0))[0]
-    cls_ind = np.intersect1d(ind1, ind2)
-    # cls_ind = np.unique(np.concatenate((ind1, ind2), axis=0))
-    # sel_pred_cls=pred_cls[cls_ind]
-
-    ind3=np.where((pred_super_cls==pred_cls))[0]
-    ind=reduce(np.intersect1d, (super_cls_ind, cls_ind,ind3))
-    # ind=np.unique(np.concatenate((super_cls_ind, cls_ind,ind3), axis=0))
-
-    # print('cls', pred_cls[ind])
-    # print('cls_score', pred_cls_score[ind])
-    # print('fine cls', pred_fine_cls[ind])
-    # print('fine cls_score', pred_fine_cls_score[ind])
-    pred_cls_score=np.reshape(pred_cls_score,(pred_cls_score.size,-1))
-    pred_super_cls_score=np.reshape(pred_super_cls_score,(pred_super_cls_score.size,-1))
-
-    final_cls_scores=np.concatenate((pred_cls_score, pred_super_cls_score), axis=1)
-    final_cls_scores=np.max(final_cls_scores, axis=1)
-    scores[ind,pred_cls[ind]]=final_cls_scores[ind] #pred_super_cls_score[ind]
     # scores=super_cls_scores
 
 

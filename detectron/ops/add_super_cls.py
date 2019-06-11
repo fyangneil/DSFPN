@@ -30,20 +30,22 @@ import detectron.utils.blob as blob_utils
 
 # import pydevd
 class AddSuperClsOp(object):
-    def __init__(self, train):
+    def __init__(self, train,category):
         self._train = train
-
+        self._category = category
+        print(self._category)
     def forward(self, inputs, outputs):
         """See modeling.detector.CollectAndDistributeFpnRpnProposals for
         inputs/outputs documentation.
         """
         # pydevd.settrace(suspend=False, trace_only_current_thread=True)
         if self._train:
+
             rois = inputs[0].data
             label=inputs[1].data
-            output_blob_names = super_cls_roi_data.get_super_cls_blob_names()
+            output_blob_names = super_cls_roi_data.get_super_cls_blob_names(self._category)
             blobs = {k: [] for k in output_blob_names}
-            super_cls_roi_data.add_super_cls_blobs(blobs, rois,label)
+            super_cls_roi_data.add_super_cls_blobs(blobs, rois,self._category,label)
             for i, k in enumerate(output_blob_names):
                 blob_utils.py_op_copy_blob(blobs[k], outputs[i])
         else:

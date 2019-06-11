@@ -234,24 +234,24 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         return outputs
 
 
-    def AddSuperCls(self):
+    def AddSuperCls(self,category):
 
         blobs_in = ['rois']
         if self.train:
             blobs_in += ['labels_int32']
+            # blobs_in+=[str(category)]
         blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
         name = 'AddSuperClsOp:' + ','.join(
             [str(b) for b in blobs_in]
         )
 
         # Prepare output blobs
-        blobs_out = super_cls_roi_data.get_super_cls_blob_names(
-            is_training=self.train
+        blobs_out = super_cls_roi_data.get_super_cls_blob_names(category,is_training=self.train
         )
         blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
 
         outputs = self.net.Python(
-            AddSuperClsOp(self.train).forward
+            AddSuperClsOp(self.train,category).forward
         )(blobs_in, blobs_out, name=name)
 
         return outputs
