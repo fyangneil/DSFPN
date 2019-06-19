@@ -43,9 +43,10 @@ class AddSuperClsOp(object):
 
             rois = inputs[0].data
             label=inputs[1].data
+            pred_cls=inputs[2].data
             output_blob_names = super_cls_roi_data.get_super_cls_blob_names(self._category)
             blobs = {k: [] for k in output_blob_names}
-            super_cls_roi_data.add_super_cls_blobs(blobs, rois,self._category,label)
+            super_cls_roi_data.add_super_cls_blobs(blobs, rois,self._category,pred_cls,label)
             for i, k in enumerate(output_blob_names):
                 blob_utils.py_op_copy_blob(blobs[k], outputs[i])
         else:

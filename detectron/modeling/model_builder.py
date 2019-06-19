@@ -301,10 +301,10 @@ def _add_fast_rcnn_head(
 ):
     """Add a Fast R-CNN head to the model."""
 
-    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_box_head_func(
+    blob_frcn, dim_frcn = add_roi_box_head_func(
         model, blob_in, dim_in, spatial_scale_in
     )
-    fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn)
+    fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn, dim_frcn)
     if model.train:
         loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
     else:

@@ -239,6 +239,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         blobs_in = ['rois']
         if self.train:
             blobs_in += ['labels_int32']
+            blobs_in += ['cls_prob']
             # blobs_in+=[str(category)]
         blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
         name = 'AddSuperClsOp:' + ','.join(

@@ -43,18 +43,18 @@ import detectron.utils.blob as blob_utils
 # Fast R-CNN outputs and losses
 # ---------------------------------------------------------------------------- #
 
-def add_fast_rcnn_outputs(model, blob_in_cls,blob_in_reg, dim):
+def add_fast_rcnn_outputs(model, blob_in, dim):
     """Add RoI classification and bounding box regression output ops."""
     # Box classification layer
     model.FC(
-        blob_in_cls,
+        blob_in,
         'cls_score',
         dim,
-        model.num_classes,
+        2 if cfg.MODEL.ROI2CLS_ON else model.num_classes,
         weight_init=gauss_fill(0.01),
         bias_init=const_fill(0.0)
     )
-    if not model.train :  # == if test
+    if not model.train or cfg.MODEL.SUPER_CLS_ON:  # == if test
         # Only add softmax when testing; during training the softmax is combined
         # with the label cross entropy loss for numerical stability
         model.Softmax('cls_score', 'cls_prob', engine='CUDNN')
@@ -63,7 +63,7 @@ def add_fast_rcnn_outputs(model, blob_in_cls,blob_in_reg, dim):
         2 if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG else model.num_classes
     )
     model.FC(
-        blob_in_reg,
+        blob_in,
         'bbox_pred',
         dim,
         num_bbox_reg_classes * 4,
@@ -134,15 +134,11 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
             roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
         )
 
-    model.FC(roi_feat, 'fc6_cls', dim_in * roi_size * roi_size, hidden_dim)
-    model.Relu('fc6_cls', 'fc6_cls')
-    model.FC('fc6_cls', 'fc7_cls', hidden_dim, hidden_dim)
-    model.Relu('fc7_cls', 'fc7_cls')
+    model.FC(roi_feat, 'fc6', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6', 'fc6')
+    model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
+    model.Relu('fc7', 'fc7')
 
-    model.FC(roi_feat, 'fc6_reg', dim_in * roi_size * roi_size, hidden_dim)
-    model.Relu('fc6_reg', 'fc6_reg')
-    model.FC('fc6_reg', 'fc7_reg', hidden_dim, hidden_dim)
-    model.Relu('fc7_reg', 'fc7_reg')
     if cfg.MODEL.CASCADE_ON:
         # add stage parameters to list
         if '1' not in model.stage_params:
@@ -150,7 +146,7 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
         for idx in range(-2, 0):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
-    return 'fc7_cls','fc7_reg', hidden_dim
+    return 'fc7', hidden_dim
 
 
 def add_roi_Xconv1fc_head(model, blob_in, dim_in, spatial_scale):

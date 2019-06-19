@@ -188,6 +188,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     # subsample positive labels if we have too many
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCH_SIZE_PER_IM)
     fg_inds = np.where(labels == 1)[0]
+    # print('fg_inds',fg_inds.size)
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False
@@ -200,6 +201,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     # samples will not have repeats)
     num_bg = cfg.TRAIN.RPN_BATCH_SIZE_PER_IM - np.sum(labels == 1)
     bg_inds = np.where(anchor_to_gt_max < cfg.TRAIN.RPN_NEGATIVE_OVERLAP)[0]
+    # print('bg_ind',bg_inds.size)
     if len(bg_inds) > num_bg:
         enable_inds = bg_inds[npr.randint(len(bg_inds), size=num_bg)]
     else:

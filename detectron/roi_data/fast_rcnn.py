@@ -138,8 +138,10 @@ def _sample_rois(roidb, im_scale, batch_idx):
     fg_rois_per_image = int(np.round(cfg.TRAIN.FG_FRACTION * rois_per_image))
     max_overlaps = roidb['max_overlaps']
 
+
     # Select foreground RoIs as those with >= FG_THRESH overlap
     fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
+    # print('fg_inds',fg_inds.size)
     # Guard against the case when an image has fewer than fg_rois_per_image
     # foreground RoIs
     fg_rois_per_this_image = np.minimum(fg_rois_per_image, fg_inds.size)
@@ -170,7 +172,8 @@ def _sample_rois(roidb, im_scale, batch_idx):
     # Label is the class each RoI has max overlap with
     sampled_labels = roidb['max_classes'][keep_inds]
     sampled_labels[fg_rois_per_this_image:] = 0  # Label bg RoIs with class 0
-
+    if cfg.MODEL.ROI2CLS_ON:
+        sampled_labels[sampled_labels>0]=1
     sampled_boxes = roidb['boxes'][keep_inds]
     gt_inds = np.where(roidb['gt_classes'] > 0)[0]
     gt_boxes = roidb['boxes'][gt_inds, :]
@@ -185,6 +188,7 @@ def _sample_rois(roidb, im_scale, batch_idx):
     bbox_targets, bbox_inside_weights = _expand_bbox_targets(
         roidb['bbox_targets'][keep_inds, :]
     )
+
     bbox_outside_weights = np.array(
         bbox_inside_weights > 0, dtype=bbox_inside_weights.dtype
     )

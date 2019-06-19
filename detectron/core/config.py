@@ -494,6 +494,7 @@ __C.MODEL.EXECUTION_TYPE = b'dag'
 __C.MODEL.FINE_CLS_ON=False
 
 __C.MODEL.SUPER_CLS_ON=False
+__C.MODEL.ROI2CLS_ON=False
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options

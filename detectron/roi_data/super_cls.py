@@ -33,10 +33,11 @@ import detectron.roi_data.keypoint_rcnn as keypoint_rcnn_roi_data
 import detectron.roi_data.mask_rcnn as mask_rcnn_roi_data
 import detectron.utils.blob as blob_utils
 import detectron.utils.boxes as box_utils
+from functools import reduce
 
 logger = logging.getLogger(__name__)
 super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
-                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80]}
+                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80],13:[1,80]}
 
 
 def get_super_cls_blob_names(category,is_training=True):
@@ -100,14 +101,15 @@ def get_super_cls_blob_names(category,is_training=True):
     return blob_names
 
 
-def add_super_cls_blobs(blobs, rois,category, label=None):
+def add_super_cls_blobs(blobs, rois,category,pred_cls_score, label=None):
     """Add blobs needed for training Fast R-CNN style models."""
     # Sample training RoIs from each image and append them to the blob lists
     im_ids=np.unique(rois[:,0])
     for i in range(im_ids.size):
         im_i=im_ids[i]
         rois_ind=np.where((rois[:, 0]==im_i))[0]
-        frcn_blobs = _sample_rois(rois[rois_ind,:],label[rois_ind],category)
+
+        frcn_blobs = _sample_rois(rois[rois_ind,:],label[rois_ind],pred_cls_score[rois_ind,:],category)
 
         for k, v in frcn_blobs.items():
             blobs[k].append(v)
@@ -128,7 +130,7 @@ def add_super_cls_blobs(blobs, rois,category, label=None):
     return valid
 
 
-def _sample_rois(rois, label,category):
+def _sample_rois(rois, label,pred_cls_score,category):
     """Generate a random sample of RoIs comprising foreground and background
     examples.
     """
@@ -136,10 +138,37 @@ def _sample_rois(rois, label,category):
     sampled_labels=label
     start_cls=super2fine_map[category][0]
     end_cls = super2fine_map[category][1]
-    fine_cls_ind=np.where((sampled_labels>=start_cls)&(sampled_labels<=end_cls))
-    nonfine_cls_ind = np.where(((sampled_labels < start_cls) | (sampled_labels > end_cls))&(sampled_labels>0))
-    sampled_labels[nonfine_cls_ind]=end_cls-start_cls+1+1
-    sampled_labels[fine_cls_ind]=sampled_labels[fine_cls_ind]-start_cls+1
+
+    # remove non-vehicle object with high probability
+    max_cls_label = np.argmax(pred_cls_score, axis=1)
+    max_cls_score = np.max(pred_cls_score, axis=1)
+
+
+    sel_obj_ind1=np.where((max_cls_label<start_cls)|(max_cls_label>end_cls))[0]
+    sel_obj_score=max_cls_score[sel_obj_ind1]
+    sort_ind=np.argsort(sel_obj_score)
+    sort_score = np.sort(sel_obj_score)
+
+    non_vehicle_num=int(sort_ind.size*0.6)
+
+    # print('sel_obj_score first half', sel_obj_score[sel_obj_ind1[sort_ind[:non_vehicle_num]]])
+    # print('sel_obj_score last half', sel_obj_score[sel_obj_ind1[sort_ind[non_vehicle_num:]]])
+    sel_obj_ind1=sel_obj_ind1[sort_ind[:non_vehicle_num]]
+    sel_obj_ind2=np.where((max_cls_label >= start_cls) & (max_cls_label <= end_cls))[0]
+    sel_obj_ind3=np.where((sampled_labels >= start_cls) & (sampled_labels <= end_cls))
+    sel_obj_ind=reduce(np.union1d, (sel_obj_ind1, sel_obj_ind2, sel_obj_ind3))
+
+
+    sampled_rois=sampled_rois[sel_obj_ind]
+    sampled_labels=sampled_labels[sel_obj_ind]
+    if category!=13:
+        fine_cls_ind=np.where((sampled_labels>=start_cls)&(sampled_labels<=end_cls))
+        nonfine_cls_ind = np.where(((sampled_labels < start_cls) | (sampled_labels > end_cls))&(sampled_labels>0))
+        sampled_labels[nonfine_cls_ind]=end_cls-start_cls+1+1
+        sampled_labels[fine_cls_ind]=sampled_labels[fine_cls_ind]-start_cls+1
+
+
+
     labels_int32_super_cls='labels_int32_super_cls_{}'.format(category)
     super_cls_rois='super_cls_{}_rois'.format(category)
 

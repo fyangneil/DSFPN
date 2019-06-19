@@ -48,7 +48,7 @@ import detectron.utils.keypoints as keypoint_utils
 
 from functools import reduce
 super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
-                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80]}
+                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80],13:[1,80]}
 logger = logging.getLogger(__name__)
 
 
@@ -236,6 +236,11 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
                 final_cls_scores = np.concatenate((pred_cls_score, pred_super_cls_score), axis=1)
                 final_cls_scores = np.max(final_cls_scores, axis=1)
                 scores[ind, pred_cls[ind]] = final_cls_scores[ind]
+
+        scores=super_cls_scores
+        # scores[:,0]=super_cls_scores[:,0]
+        # scores[:, 2:10] = super_cls_scores[:, 1:9]
+        # scores[:, 1] = super_cls_scores[:, 9]
 
 
 
