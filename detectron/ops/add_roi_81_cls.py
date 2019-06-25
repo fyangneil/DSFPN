@@ -25,15 +25,13 @@ from detectron.datasets import json_dataset
 from detectron.datasets import roidb as roidb_utils
 import detectron.modeling.FPN as fpn
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
-import detectron.roi_data.super_cls as super_cls_roi_data
+import detectron.roi_data.roi_81_cls as roi_81_cls_roi_data
 import detectron.utils.blob as blob_utils
 
 # import pydevd
-class AddSuperClsOp(object):
-    def __init__(self, train,category):
+class AddRoi81ClsOp(object):
+    def __init__(self, train):
         self._train = train
-        self._category = category
-        print(self._category)
     def forward(self, inputs, outputs):
         """See modeling.detector.CollectAndDistributeFpnRpnProposals for
         inputs/outputs documentation.
@@ -44,9 +42,9 @@ class AddSuperClsOp(object):
             rois = inputs[0].data
             label=inputs[1].data
             pred_cls=inputs[2].data
-            output_blob_names = super_cls_roi_data.get_super_cls_blob_names(self._category)
+            output_blob_names = roi_81_cls_roi_data.get_roi_81_cls_blob_names()
             blobs = {k: [] for k in output_blob_names}
-            super_cls_roi_data.add_super_cls_blobs(blobs, rois,self._category,pred_cls,label)
+            roi_81_cls_roi_data.add_roi_81_cls_blobs(blobs, rois,pred_cls,label)
             for i, k in enumerate(output_blob_names):
                 blob_utils.py_op_copy_blob(blobs[k], outputs[i])
         else:

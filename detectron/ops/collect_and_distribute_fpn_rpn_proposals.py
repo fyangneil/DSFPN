@@ -27,7 +27,7 @@ import detectron.modeling.FPN as fpn
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 import detectron.utils.blob as blob_utils
 # import pydevd
-#
+
 class CollectAndDistributeFpnRpnProposalsOp(object):
     def __init__(self, train):
         self._train = train

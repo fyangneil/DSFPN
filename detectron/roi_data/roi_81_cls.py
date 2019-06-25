@@ -40,16 +40,16 @@ super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
                 7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80],13:[1,80]}
 
 
-def get_super_cls_blob_names(category,is_training=True):
+def get_roi_81_cls_blob_names(is_training=True):
     """super cls blob names."""
     # rois blob: holds R regions of interest, each is a 5-tuple
     # (batch_idx, x1, y1, x2, y2) specifying an image batch index and a
     # rectangle (x1, y1, x2, y2)
-    blob_names = ['super_cls_{}_rois'.format(category)]
+    blob_names = ['roi_81_cls']
     if is_training:
         # labels_int32 blob: R categorical labels in [0, ..., K] for K
         # foreground classes plus background
-        blob_names += ['labels_int32_super_cls_{}'.format(category)]
+        blob_names += ['labels_int32_roi_81_cls']
 
     if is_training and cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
@@ -87,8 +87,8 @@ def get_super_cls_blob_names(category,is_training=True):
         k_min = cfg.FPN.ROI_MIN_LEVEL
         # Same format as rois blob, but one per FPN level
         for lvl in range(k_min, k_max + 1):
-            blob_names += ['super_cls_'+str(category)+'_rois_fpn' + str(lvl)]
-        blob_names += ['super_cls_{}_rois_idx_restore_int32'.format(category)]
+            blob_names += ['roi_81_cls_fpn' + str(lvl)]
+        blob_names += ['roi_81_cls_idx_restore_int32']
         if is_training:
             if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
                 for lvl in range(k_min, k_max + 1):
@@ -101,7 +101,7 @@ def get_super_cls_blob_names(category,is_training=True):
     return blob_names
 
 
-def add_super_cls_blobs(blobs, rois,category,pred_cls_score, label=None):
+def add_roi_81_cls_blobs(blobs, rois,pred_cls_score, label=None):
     """Add blobs needed for training Fast R-CNN style models."""
     # Sample training RoIs from each image and append them to the blob lists
     im_ids=np.unique(rois[:,0])
@@ -109,7 +109,7 @@ def add_super_cls_blobs(blobs, rois,category,pred_cls_score, label=None):
         im_i=im_ids[i]
         rois_ind=np.where((rois[:, 0]==im_i))[0]
 
-        frcn_blobs = _sample_rois(rois[rois_ind,:],label[rois_ind],pred_cls_score[rois_ind,:],category)
+        frcn_blobs = _sample_rois(rois[rois_ind,:],label[rois_ind],pred_cls_score[rois_ind,:])
 
         for k, v in frcn_blobs.items():
             blobs[k].append(v)
@@ -119,7 +119,7 @@ def add_super_cls_blobs(blobs, rois,category,pred_cls_score, label=None):
             blobs[k] = np.concatenate(v)
     # Add FPN multilevel training RoIs, if configured
     if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_ROIS:
-        _add_multilevel_rois(blobs,category)
+        _add_multilevel_rois(blobs)
 
     # Perform any final work and validity checks after the collating blobs for
     # all minibatch images
@@ -130,54 +130,87 @@ def add_super_cls_blobs(blobs, rois,category,pred_cls_score, label=None):
     return valid
 
 
-def _sample_rois(rois, label,pred_cls_score,category):
+def _sample_rois(rois, label,pred_cls_score):
     """Generate a random sample of RoIs comprising foreground and background
     examples.
     """
     sampled_rois=rois
     sampled_labels=label
-    start_cls=super2fine_map[category][0]
-    end_cls = super2fine_map[category][1]
-
+    sampled_labels_binary=label.copy()
+    sampled_labels_binary[sampled_labels>0]=1
     # remove non-vehicle object with high probability
     max_cls_label = np.argmax(pred_cls_score, axis=1)
     max_cls_score = np.max(pred_cls_score, axis=1)
 
 
-    sel_obj_ind1=np.where((max_cls_label<start_cls)|(max_cls_label>end_cls))[0]
-    sel_obj_score=max_cls_score[sel_obj_ind1]
-    sort_ind=np.argsort(sel_obj_score)
-    sort_score = np.sort(sel_obj_score)
+    # hard negatives
+    gt_neg_ind=np.where(sampled_labels_binary==0)[0]
 
-    non_vehicle_num=int(sort_ind.size*0.6)
+    gt_hard_neg_ind_tmp=np.where(max_cls_label[gt_neg_ind]==1)[0]
 
-    # print('sel_obj_score first half', sel_obj_score[sel_obj_ind1[sort_ind[:non_vehicle_num]]])
-    # print('sel_obj_score last half', sel_obj_score[sel_obj_ind1[sort_ind[non_vehicle_num:]]])
-    sel_obj_ind1=sel_obj_ind1[sort_ind[:non_vehicle_num]]
-    sel_obj_ind2=np.where((max_cls_label >= start_cls) & (max_cls_label <= end_cls))[0]
-    sel_obj_ind3=np.where((sampled_labels >= start_cls) & (sampled_labels <= end_cls))
-    sel_obj_ind=reduce(np.union1d, (sel_obj_ind1, sel_obj_ind2, sel_obj_ind3))
+    gt_hard_neg_ind=gt_neg_ind[gt_hard_neg_ind_tmp]
 
+    gt_hard_neg_ind_tmp=np.where(max_cls_score[gt_hard_neg_ind]>0.3)[0]
+    gt_hard_neg_ind=gt_neg_ind[gt_hard_neg_ind_tmp]
+
+    # normal negatives
+    gt_neg_score=max_cls_score[gt_neg_ind]
+    sort_ind=np.argsort(gt_neg_score)
+    non_foreground_num = int(sort_ind.size * 0.6)
+    gt_neg_ind=gt_neg_ind[sort_ind[:non_foreground_num]]
+    gt_neg_score = max_cls_score[gt_neg_ind]
+    sort_ind = np.argsort(gt_neg_score)
+
+
+    # positives
+    gt_pos_ind=np.where(sampled_labels_binary==1)[0]
+    pos_num=gt_pos_ind.size
+
+    neg_num=int(np.minimum(2.5*pos_num,gt_neg_ind.size))
+    gt_neg_ind=gt_neg_ind[sort_ind[:neg_num]]
+
+    sel_obj_ind = reduce(np.union1d, (gt_neg_ind, gt_hard_neg_ind,gt_pos_ind))
+
+
+
+    # sel_obj_ind1=np.where(max_cls_label==0)[0]
+    # sel_obj_score=max_cls_score[sel_obj_ind1]
+    # sort_ind=np.argsort(sel_obj_score)
+    # # sort_score = np.sort(sel_obj_score)
+    # # get hard negatives
+    # hard_negs_ind=np.where(max_cls_label[sel_obj_ind1]!=sampled_labels_binary[sel_obj_ind1])[0]
+    # hard_negs_ind=sel_obj_ind1[hard_negs_ind]
+    # hard_negs_ind_thr=np.where(max_cls_score[hard_negs_ind]>0.3)[0]
+    # hard_negs_ind=hard_negs_ind[hard_negs_ind_thr]
+    #
+    # non_foreground_num=int(sort_ind.size*0.6)
+    # negs_ind=sel_obj_ind1[sort_ind[:non_foreground_num]]
+    #
+    #
+    # sel_obj_ind2=np.where(max_cls_label ==1)[0]
+    # sel_obj_ind3=np.where(sampled_labels_binary==1)[0]
+    #
+    # pos_ind=reduce(np.union1d, (sel_obj_ind2, sel_obj_ind3))
+    #
+    # pos_num=pos_ind.size
+    # neg_num=np.minimum(2.5*pos_num,negs_ind.size)
+    #
+    # if negs_ind.size > 0:
+    #     negs_ind = npr.choice(
+    #         negs_ind, size=neg_num, replace=False
+    #     )
+    # negs_ind = reduce(np.union1d, (negs_ind, hard_negs_ind))
+    # sel_obj_ind = reduce(np.union1d, (negs_ind, sel_obj_ind2,sel_obj_ind3))
 
     sampled_rois=sampled_rois[sel_obj_ind]
     sampled_labels=sampled_labels[sel_obj_ind]
-    if category!=13:
-        fine_cls_ind=np.where((sampled_labels>=start_cls)&(sampled_labels<=end_cls))
-        nonfine_cls_ind = np.where(((sampled_labels < start_cls) | (sampled_labels > end_cls))&(sampled_labels>0))
-        sampled_labels[nonfine_cls_ind]=end_cls-start_cls+1+1
-        sampled_labels[fine_cls_ind]=sampled_labels[fine_cls_ind]-start_cls+1
 
 
+    labels_int32_roi_81_cls='labels_int32_roi_81_cls'
+    roi_81_cls_rois='roi_81_cls'
 
-    labels_int32_super_cls='labels_int32_super_cls_{}'.format(category)
-    super_cls_rois='super_cls_{}_rois'.format(category)
+    blob_dict = {labels_int32_roi_81_cls:sampled_labels.astype(np.int32, copy=False),roi_81_cls_rois:sampled_rois}
 
-
-    blob_dict = {labels_int32_super_cls:sampled_labels.astype(np.int32, copy=False),super_cls_rois:sampled_rois}
-    #     dict(
-    #     labels_int32_super_cls=sampled_labels.astype(np.int32, copy=False),
-    #     super_cls_rois=sampled_rois
-    # )
     return blob_dict
 
 
@@ -210,7 +243,7 @@ def _expand_bbox_targets(bbox_target_data):
     return bbox_targets, bbox_inside_weights
 
 
-def _add_multilevel_rois(blobs,category):
+def _add_multilevel_rois(blobs):
     """By default training RoIs are added for a single feature map level only.
     When using FPN, the RoIs must be distributed over different FPN levels
     according the level assignment heuristic (see: modeling.FPN.
@@ -234,7 +267,7 @@ def _add_multilevel_rois(blobs,category):
             lvl_max
         )
 
-    _distribute_rois_over_fpn_levels('super_cls_{}_rois'.format(category))
+    _distribute_rois_over_fpn_levels('roi_81_cls')
     if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
         _distribute_rois_over_fpn_levels('mask_rois')
     if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:

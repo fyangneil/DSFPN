@@ -37,36 +37,29 @@ from detectron.utils.c2 import const_fill
 from detectron.utils.c2 import gauss_fill
 from detectron.utils.net import get_group_gn
 import detectron.utils.blob as blob_utils
-super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
-                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80],13:[1,80]}
 
-def add_super_cls_inputs(model,category):
-    model.AddSuperCls(category)
+
+def add_roi_81_cls_inputs(model):
+    model.AddRoi81Cls()
 # ---------------------------------------------------------------------------- #
 # Fast R-CNN outputs and losses
 # ---------------------------------------------------------------------------- #
 
-def add_super_cls_outputs(model, blob_in, dim,category):
+def add_roi_81_cls_outputs(model, blob_in, dim):
     """Add RoI classification and bounding box regression output ops."""
     # Box classification layer
-    start_fine_cls=super2fine_map[category][0]
-    end_fine_cls = super2fine_map[category][1]
-    if category==13:
-        super_cls_output_num=end_fine_cls-start_fine_cls+1+1
-    else:
-        super_cls_output_num=end_fine_cls-start_fine_cls+1+1+1
     model.FC(
         blob_in,
-        'super_cls_{}_score'.format(category),
+        'roi_81_cls_score',
         dim,
-        super_cls_output_num,
+        cfg.MODEL.NUM_CLASSES,
         weight_init=gauss_fill(0.01),
         bias_init=const_fill(0.0)
     )
-    if not model.train or cfg.MODEL.FINE_CLS_ON:  # == if test
+    if not model.train:  # == if test
         # Only add softmax when testing; during training the softmax is combined
         # with the label cross entropy loss for numerical stability
-        model.Softmax('super_cls_{}_score'.format(category), 'super_cls_{}_prob'.format(category), engine='CUDNN')
+        model.Softmax('roi_81_cls_score', 'roi_81_cls_prob', engine='CUDNN')
 
 
     if cfg.MODEL.CASCADE_ON:
@@ -78,22 +71,22 @@ def add_super_cls_outputs(model, blob_in, dim,category):
             model.stage_params['1'].append(model.biases[idx])
 
 
-def add_super_cls_losses(model,category):
+def add_roi_81_cls_losses(model):
     """Add losses for RoI classification and bounding box regression."""
     loss_scalar = 1.0
     if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_LOSS:
         loss_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
-    super_cls_prob, loss_super_cls = model.net.SoftmaxWithLoss(
-        ['super_cls_{}_score'.format(category), 'labels_int32_super_cls_{}'.format(category)],
-        ['super_cls_{}_prob'.format(category), 'loss_super_cls_{}'.format(category)],
+    roi_81_cls_prob, loss_roi_81_cls = model.net.SoftmaxWithLoss(
+        ['roi_81_cls_score', 'labels_int32_roi_81_cls'],
+        ['roi_81_cls_prob', 'loss_roi_81_cls'],
         scale=model.GetLossScale() * loss_scalar
     )
 
-    loss_gradients = blob_utils.get_loss_gradients(model, [loss_super_cls])
-    model.Accuracy(['super_cls_{}_prob'.format(category), 'labels_int32_super_cls_{}'.format(category)],
-                   'accuracy_super_cls_{}'.format(category))
-    model.AddLosses(['loss_super_cls_{}'.format(category)])
-    model.AddMetrics('accuracy_super_cls_{}'.format(category))
+    loss_gradients = blob_utils.get_loss_gradients(model, [loss_roi_81_cls])
+    model.Accuracy(['roi_81_cls_prob', 'labels_int32_roi_81_cls'],
+                   'accuracy_roi_81_cls')
+    model.AddLosses(['loss_roi_81_cls'])
+    model.AddMetrics('accuracy_roi_81_cls')
     return loss_gradients
 
 
@@ -101,13 +94,13 @@ def add_super_cls_losses(model,category):
 # Box heads
 # ---------------------------------------------------------------------------- #
 
-def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale,category):
+def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     """Add a ReLU MLP with two hidden layers."""
     print('add_roi_2mlp_head')
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
-    blob_out='super_cls_{}_roi_feat'.format(category)
-    blob_rois_name='super_cls_{}_rois'.format(category)
+    blob_out='roi_81_cls_feat'
+    blob_rois_name='roi_81_cls'
     roi_feat = model.RoIFeatureTransform(
         blob_in,
         blob_out,
@@ -124,10 +117,10 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale,category):
         model.net.Scale(
             roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
         )
-    model.FC(roi_feat, 'fc6_super_cls_{}'.format(category), dim_in * roi_size * roi_size, hidden_dim)
-    model.Relu('fc6_super_cls_{}'.format(category), 'fc6_super_cls_{}'.format(category))
-    model.FC('fc6_super_cls_{}'.format(category), 'fc7_super_cls_{}'.format(category), hidden_dim, hidden_dim)
-    model.Relu('fc7_super_cls_{}'.format(category), 'fc7_super_cls_{}'.format(category))
+    model.FC(roi_feat, 'fc6_roi_81_cls', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6_roi_81_cls', 'fc6_roi_81_cls')
+    model.FC('fc6_roi_81_cls', 'fc7_roi_81_cls', hidden_dim, hidden_dim)
+    model.Relu('fc7_roi_81_cls', 'fc7_roi_81_cls')
     if cfg.MODEL.CASCADE_ON:
         # add stage parameters to list
         if '1' not in model.stage_params:
@@ -135,7 +128,7 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale,category):
         for idx in range(-2, 0):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
-    return 'fc7_super_cls_{}'.format(category), hidden_dim
+    return 'fc7_roi_81_cls', hidden_dim
 
 
 def add_roi_Xconv1fc_head(model, blob_in, dim_in, spatial_scale):

@@ -491,10 +491,11 @@ __C.MODEL.RPN_ONLY = False
 # Use 'prof_dag' to get profiling statistics
 __C.MODEL.EXECUTION_TYPE = b'dag'
 
-__C.MODEL.FINE_CLS_ON=False
+__C.MODEL.ROI_2CLS_ON=False
+__C.MODEL.ROI_81CLS_ON=False
+__C.MODEL.ROI_2CLS_LOSS_OFF=False
 
-__C.MODEL.SUPER_CLS_ON=False
-__C.MODEL.ROI2CLS_ON=False
+
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
@@ -687,6 +688,13 @@ __C.SUPER_CLS.TEST_ENSEMBLE=False
 __C.FINE_CLS = AttrDict()
 __C.FINE_CLS.ROI_BOX_HEAD=b''
 __C.FINE_CLS.NUM_CLASSES=-1
+# ---------------------------------------------------------------------------- #
+# roi 81 cls options
+# ---------------------------------------------------------------------------- #
+__C.ROI_81CLS = AttrDict()
+__C.ROI_81CLS.ROI_BOX_HEAD=b''
+
+
 
 # ---------------------------------------------------------------------------- #
 # Cascade R-CNN options

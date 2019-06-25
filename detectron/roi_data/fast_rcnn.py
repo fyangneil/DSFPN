@@ -47,6 +47,7 @@ def get_fast_rcnn_blob_names(is_training=True):
         # labels_int32 blob: R categorical labels in [0, ..., K] for K
         # foreground classes plus background
         blob_names += ['labels_int32']
+        blob_names += ['original_labels_int32']
     if is_training:
         # bbox_targets blob: R bounding-box regression targets with 4
         # targets per class
@@ -138,13 +139,15 @@ def _sample_rois(roidb, im_scale, batch_idx):
     fg_rois_per_image = int(np.round(cfg.TRAIN.FG_FRACTION * rois_per_image))
     max_overlaps = roidb['max_overlaps']
 
-
     # Select foreground RoIs as those with >= FG_THRESH overlap
     fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
     # print('fg_inds',fg_inds.size)
     # Guard against the case when an image has fewer than fg_rois_per_image
     # foreground RoIs
-    fg_rois_per_this_image = np.minimum(fg_rois_per_image, fg_inds.size)
+    if cfg.MODEL.ROI_2CLS_LOSS_OFF:
+        fg_rois_per_this_image=fg_inds.size
+    else:
+        fg_rois_per_this_image = np.minimum(fg_rois_per_image, fg_inds.size)
     # Sample foreground regions without replacement
     if fg_inds.size > 0:
         fg_inds = npr.choice(
@@ -158,8 +161,11 @@ def _sample_rois(roidb, im_scale, batch_idx):
     )[0]
     # Compute number of background RoIs to take from this image (guarding
     # against there being fewer than desired)
-    bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
-    bg_rois_per_this_image = np.minimum(bg_rois_per_this_image, bg_inds.size)
+    if cfg.MODEL.ROI_2CLS_LOSS_OFF:
+        bg_rois_per_this_image=bg_inds.size
+    else:
+        bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
+        bg_rois_per_this_image = np.minimum(bg_rois_per_this_image, bg_inds.size)
     # Sample foreground regions without replacement
     if bg_inds.size > 0:
         bg_inds = npr.choice(
@@ -172,7 +178,8 @@ def _sample_rois(roidb, im_scale, batch_idx):
     # Label is the class each RoI has max overlap with
     sampled_labels = roidb['max_classes'][keep_inds]
     sampled_labels[fg_rois_per_this_image:] = 0  # Label bg RoIs with class 0
-    if cfg.MODEL.ROI2CLS_ON:
+    original_sampled_labels=sampled_labels.copy()
+    if cfg.MODEL.ROI_2CLS_ON:
         sampled_labels[sampled_labels>0]=1
     sampled_boxes = roidb['boxes'][keep_inds]
     gt_inds = np.where(roidb['gt_classes'] > 0)[0]
@@ -206,6 +213,7 @@ def _sample_rois(roidb, im_scale, batch_idx):
         bbox_inside_weights=bbox_inside_weights,
         bbox_outside_weights=bbox_outside_weights,
         mapped_gt_boxes=mapped_gt_boxes,
+        original_labels_int32=original_sampled_labels.astype(np.int32, copy=False)
     )
 
     # Optionally add Mask R-CNN blobs
