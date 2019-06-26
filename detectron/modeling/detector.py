@@ -235,11 +235,12 @@ class DetectionModelHelper(cnn.CNNModelHelper):
 
 
     def AddRoi81Cls(self):
-
-        blobs_in = ['rois']
         if self.train:
-            blobs_in += ['original_labels_int32']
-            blobs_in += ['cls_prob']
+            blobs_in = ['all_rois']
+            blobs_in += ['all_labels_int32']
+            blobs_in += ['all_roi_cls_prob']
+        else:
+            blobs_in = ['rois']
             # blobs_in+=[str(category)]
         blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
         name = 'AddRoi81ClsOp:' + ','.join(

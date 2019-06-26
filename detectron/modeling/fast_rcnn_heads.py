@@ -79,6 +79,30 @@ def add_fast_rcnn_outputs(model, blob_in, dim):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
 
+def add_fast_rcnn_all_roi_outputs(model, blob_in, dim):
+    """Add RoI classification and bounding box regression output ops."""
+    # Box classification layer
+
+    model.FCShared(
+        blob_in,
+        'all_roi_cls_score',
+        weight='cls_score_w',
+        bias='cls_score_b'
+    )
+
+    if not model.train or cfg.MODEL.ROI_HARD_NEG_ON:  # == if test
+        # Only add softmax when testing; during training the softmax is combined
+        # with the label cross entropy loss for numerical stability
+        model.Softmax('all_roi_cls_score', 'all_roi_cls_prob', engine='CUDNN')
+
+
+    if cfg.MODEL.CASCADE_ON:
+        # add stage parameters to list
+        if '1' not in model.stage_params:
+            model.stage_params['1'] = []
+        for idx in range(-2, 0):
+            model.stage_params['1'].append(model.weights[idx])
+            model.stage_params['1'].append(model.biases[idx])
 
 def add_fast_rcnn_losses(model):
     """Add losses for RoI classification and bounding box regression."""
@@ -148,6 +172,53 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
             model.stage_params['1'].append(model.biases[idx])
     return 'fc7', hidden_dim
 
+def add_all_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
+    """Add a ReLU MLP with two hidden layers."""
+    hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
+    roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+    roi_feat = model.RoIFeatureTransform(
+        blob_in,
+        'all_roi_feat',
+        blob_rois='all_rois',
+        method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+        resolution=roi_size,
+        sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+        spatial_scale=spatial_scale
+    )
+
+    # normalize the gradient by the number of cascade heads
+    if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_GRAD:
+        grad_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
+        model.net.Scale(
+            roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
+        )
+
+    # model.FC(roi_feat, 'fc6', dim_in * roi_size * roi_size, hidden_dim)
+    model.FCShared(
+        roi_feat,
+        "all_roi_fc6",
+        weight="fc6_w",
+        bias="fc6_b",
+    )
+
+    model.Relu('all_roi_fc6', 'all_roi_fc6')
+    # model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
+    model.FCShared(
+        'all_roi_fc6',
+        "all_roi_fc7",
+        weight="fc7_w",
+        bias="fc7_b",
+    )
+    model.Relu('all_roi_fc7', 'all_roi_fc7')
+
+    if cfg.MODEL.CASCADE_ON:
+        # add stage parameters to list
+        if '1' not in model.stage_params:
+            model.stage_params['1'] = []
+        for idx in range(-2, 0):
+            model.stage_params['1'].append(model.weights[idx])
+            model.stage_params['1'].append(model.biases[idx])
+    return 'all_roi_fc7', hidden_dim
 
 def add_roi_Xconv1fc_head(model, blob_in, dim_in, spatial_scale):
     """Add a X conv + 1fc head, as a reference if not using GroupNorm"""

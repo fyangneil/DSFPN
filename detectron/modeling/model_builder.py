@@ -93,6 +93,7 @@ def generalized_rcnn(model):
         add_roi_keypoint_head_func=get_func(cfg.KRCNN.ROI_KEYPOINTS_HEAD),
         freeze_conv_body=cfg.TRAIN.FREEZE_CONV_BODY,
         add_roi_81_cls_head_func=get_func(cfg.ROI_81CLS.ROI_BOX_HEAD),
+        add_all_roi_box_head_func=get_func(cfg.FAST_RCNN.ALL_ROI_BOX_HEAD)
     )
 
 
@@ -184,6 +185,7 @@ def build_generic_detection_model(
     add_roi_keypoint_head_func=None,
     freeze_conv_body=False,
     add_roi_81_cls_head_func=None,
+    add_all_roi_box_head_func=None
 ):
     def _single_gpu_build_func(model):
         """Build the model on a single GPU. Can be called in a loop over GPUs
@@ -223,10 +225,17 @@ def build_generic_detection_model(
 
         if not cfg.MODEL.RPN_ONLY:
             # Add the Fast R-CNN head
-            head_loss_gradients['box'] = _add_fast_rcnn_head(
-                model, add_roi_box_head_func, blob_conv, dim_conv,
-                spatial_scale_conv
-            )
+            if cfg.MODEL.ROI_HARD_NEG_ON and model.train:
+                head_loss_gradients['box'] = _add_fast_rcnn_hard_neg_head(
+                    model, add_roi_box_head_func,add_all_roi_box_head_func, blob_conv, dim_conv,
+                    spatial_scale_conv
+                )
+
+            else:
+                head_loss_gradients['box'] = _add_fast_rcnn_head(
+                    model, add_roi_box_head_func, blob_conv, dim_conv,
+                    spatial_scale_conv
+                )
             if cfg.MODEL.ROI_81CLS_ON:
                 head_loss_gradients['roi_81_cls'] = _add_roi_81_cls_head(
                     model, add_roi_81_cls_head_func, blob_conv, dim_conv,
@@ -297,6 +306,30 @@ def _add_fast_rcnn_head(
         model, blob_in, dim_in, spatial_scale_in
     )
     fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn, dim_frcn)
+    if model.train:
+        if cfg.MODEL.ROI_2CLS_LOSS_OFF:
+            loss_gradients = None
+        else:
+            loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
+
+    else:
+        loss_gradients = None
+    return loss_gradients
+def _add_fast_rcnn_hard_neg_head(
+    model, add_roi_box_head_func,add_all_roi_box_head_func, blob_in, dim_in, spatial_scale_in
+):
+    """Add a Fast R-CNN head to the model."""
+
+    blob_frcn, dim_frcn = add_roi_box_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn, dim_frcn)
+
+    blob_frcn_all_roi, dim_frcn_all_roi = add_all_roi_box_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    fast_rcnn_heads.add_fast_rcnn_all_roi_outputs(model, blob_frcn_all_roi, dim_frcn_all_roi)
+
     if model.train:
         if cfg.MODEL.ROI_2CLS_LOSS_OFF:
             loss_gradients = None

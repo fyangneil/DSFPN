@@ -494,6 +494,8 @@ __C.MODEL.EXECUTION_TYPE = b'dag'
 __C.MODEL.ROI_2CLS_ON=False
 __C.MODEL.ROI_81CLS_ON=False
 __C.MODEL.ROI_2CLS_LOSS_OFF=False
+__C.MODEL.ROI_HARD_NEG_ON=False
+
 
 
 
@@ -650,6 +652,7 @@ __C.FAST_RCNN = AttrDict()
 # The string must match a function this is imported in modeling.model_builder
 # (e.g., 'head_builder.add_roi_2mlp_head' to specify a two hidden layer MLP)
 __C.FAST_RCNN.ROI_BOX_HEAD = b''
+__C.FAST_RCNN.ALL_ROI_BOX_HEAD = b''
 
 # Hidden layer dimension when using an MLP for the RoI box head
 __C.FAST_RCNN.MLP_HEAD_DIM = 1024

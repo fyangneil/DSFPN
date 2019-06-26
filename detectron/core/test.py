@@ -222,7 +222,7 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
         sel_obj_ind1 = np.where(pred_cls == 0)[0]
         sel_obj_score = pred_cls_score[sel_obj_ind1]
         sort_ind = np.argsort(sel_obj_score)
-        non_foreground_num = int(sort_ind.size * 0.3)
+        non_foreground_num = int(sort_ind.size * 0.5)
         sel_obj_ind1=sel_obj_ind1[sort_ind[non_foreground_num:]]
         # ind2 = np.where((pred_super_cls_score > 0.0))[0]
         # super_cls_ind = np.intersect1d(ind1, ind2)
