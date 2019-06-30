@@ -495,7 +495,8 @@ __C.MODEL.ROI_2CLS_ON=False
 __C.MODEL.ROI_81CLS_ON=False
 __C.MODEL.ROI_2CLS_LOSS_OFF=False
 __C.MODEL.ROI_HARD_NEG_ON=False
-
+__C.MODEL.ROI_HARD_POS_ON=False
+__C.MODEL.ALL_ROI_ON=False
 
 
 
@@ -697,6 +698,11 @@ __C.FINE_CLS.NUM_CLASSES=-1
 __C.ROI_81CLS = AttrDict()
 __C.ROI_81CLS.ROI_BOX_HEAD=b''
 
+# ---------------------------------------------------------------------------- #
+# hard pos roi 81 cls options
+# ---------------------------------------------------------------------------- #
+__C.HARD_POS_ROI_81CLS = AttrDict()
+__C.HARD_POS_ROI_81CLS.ROI_BOX_HEAD=b''
 
 
 # ---------------------------------------------------------------------------- #

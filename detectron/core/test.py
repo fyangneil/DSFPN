@@ -222,13 +222,20 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
         sel_obj_ind1 = np.where(pred_cls == 0)[0]
         sel_obj_score = pred_cls_score[sel_obj_ind1]
         sort_ind = np.argsort(sel_obj_score)
-        non_foreground_num = int(sort_ind.size * 0.5)
+        non_foreground_num = int(sort_ind.size * 0.3)
         sel_obj_ind1=sel_obj_ind1[sort_ind[non_foreground_num:]]
         # ind2 = np.where((pred_super_cls_score > 0.0))[0]
         # super_cls_ind = np.intersect1d(ind1, ind2)
 
-        roi_81_cls_scores[sel_obj_ind1, :]=0
+        # roi_81_cls_scores[sel_obj_ind1, :]=0
         scores=roi_81_cls_scores
+
+        if cfg.MODEL.ROI_HARD_POS_ON:
+            hard_pos_roi_81_cls_prob_name = 'hard_pos_roi_81_cls_prob'
+            hard_pos_roi_81_cls_scores = workspace.FetchBlob(core.ScopedName(hard_pos_roi_81_cls_prob_name)).squeeze()
+            hard_pos_roi_81_cls_scores = hard_pos_roi_81_cls_scores.reshape([-1, hard_pos_roi_81_cls_scores.shape[-1]])
+            hard_pos_roi_81_cls_scores[sel_obj_ind1, :] = 0
+            scores=hard_pos_roi_81_cls_scores
         # scores[:,0]=super_cls_scores[:,0]
         # scores[:, 2:10] = super_cls_scores[:, 1:9]
         # scores[:, 1] = super_cls_scores[:, 9]

@@ -25,38 +25,34 @@ from detectron.datasets import json_dataset
 from detectron.datasets import roidb as roidb_utils
 import detectron.modeling.FPN as fpn
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
-import detectron.roi_data.fine_cls as fine_cls_roi_data
+import detectron.roi_data.hard_pos_roi_81_cls as hard_pos_roi_81_cls_roi_data
+
 import detectron.utils.blob as blob_utils
 
 # import pydevd
-class AddFineClsOp(object):
+class AddHardPosRoi81ClsOp(object):
     def __init__(self, train):
         self._train = train
-
     def forward(self, inputs, outputs):
         """See modeling.detector.CollectAndDistributeFpnRpnProposals for
         inputs/outputs documentation.
         """
-
         # pydevd.settrace(suspend=False, trace_only_current_thread=True)
         if self._train:
-            prob_supercls=inputs[0].data
-            rois = inputs[1].data
-            label=inputs[2].data
-            output_blob_names = fine_cls_roi_data.get_fine_cls_blob_names()
+
+            rois = inputs[0].data
+            label=inputs[1].data
+            pred_cls=inputs[2].data
+            output_blob_names = hard_pos_roi_81_cls_roi_data.get_hard_pos_roi_81_cls_blob_names()
             blobs = {k: [] for k in output_blob_names}
-            fine_cls_roi_data.add_fine_cls_blobs(blobs, rois, prob_supercls,label)
+            hard_pos_roi_81_cls_roi_data.add_hard_pos_roi_81_cls_blobs(blobs, rois,pred_cls,label)
             for i, k in enumerate(output_blob_names):
                 blob_utils.py_op_copy_blob(blobs[k], outputs[i])
         else:
-            prob_supercls = inputs[0].data
-            rois = inputs[1].data
-            distribute(rois, prob_supercls, outputs)
+            rois = inputs[0].data
+            distribute(rois, outputs)
 
-
-
-
-def distribute(rois, prob_supercls, outputs):
+def distribute(rois, outputs):
     """To understand the output blob order see return value of
     detectron.roi_data.fast_rcnn.get_fast_rcnn_blob_names(is_training=False)
     """

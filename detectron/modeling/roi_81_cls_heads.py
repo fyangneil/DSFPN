@@ -56,7 +56,7 @@ def add_roi_81_cls_outputs(model, blob_in, dim):
         weight_init=gauss_fill(0.01),
         bias_init=const_fill(0.0)
     )
-    if not model.train:  # == if test
+    if not model.train or cfg.MODEL.ROI_HARD_POS_ON:  # == if test
         # Only add softmax when testing; during training the softmax is combined
         # with the label cross entropy loss for numerical stability
         model.Softmax('roi_81_cls_score', 'roi_81_cls_prob', engine='CUDNN')

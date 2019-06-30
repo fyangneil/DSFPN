@@ -6,11 +6,12 @@ MODEL:
   FASTER_RCNN: True
   CASCADE_ON: False
   CLS_AGNOSTIC_BBOX_REG: True  # default: False
-  ROI_2CLS_ON: True
+  ROI_2CLS_ON: False
   ROI_81CLS_ON: True
   ROI_2CLS_LOSS_OFF: False
   ROI_HARD_NEG_ON: True
-
+  ROI_HARD_POS_ON: False
+  ALL_ROI_ON: False
 NUM_GPUS: 2
 SOLVER:
   WEIGHT_DECAY: 0.0001
@@ -31,14 +32,15 @@ FAST_RCNN:
   ROI_XFORM_SAMPLING_RATIO: 2
 ROI_81CLS:
   ROI_BOX_HEAD: roi_81_cls_heads.add_roi_2mlp_head
-
+HARD_POS_ROI_81CLS:
+  ROI_BOX_HEAD: hard_pos_roi_81_cls_heads.add_roi_2mlp_head
 CASCADE_RCNN:
   ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head
   NUM_STAGE: 3
   TEST_STAGE: 3
   TEST_ENSEMBLE: False
 TRAIN:
-  WEIGHTS: ./pretrained_model/R-50.pkl #  #./tmp/17/train/coco_2014_train/generalized_rcnn/model_iter59999.pkl #/media/fanyang/C/code/detector/Detectron-Cascade-RCNN/tmp/10/train/coco_2014_train/generalized_rcnn/model_iter3999.pkl
+  WEIGHTS: ./pretrained_model/R-50.pkl #./tmp/25/train/coco_2014_train/generalized_rcnn/model_iter59999.pkl #./pretrained_model/R-50.pkl #  #./tmp/17/train/coco_2014_train/generalized_rcnn/model_iter59999.pkl #/media/fanyang/C/code/detector/Detectron-Cascade-RCNN/tmp/10/train/coco_2014_train/generalized_rcnn/model_iter3999.pkl
   DATASETS: ('coco_2014_train', )
   SCALES: (600,)
   MAX_SIZE: 1000

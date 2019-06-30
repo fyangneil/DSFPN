@@ -37,11 +37,13 @@ from detectron.ops.generate_proposal_labels import GenerateProposalLabelsOp
 from detectron.ops.generate_proposals import GenerateProposalsOp
 from detectron.ops.decode_bboxes import DecodeBBoxesOp
 from detectron.ops.bbox_accuracy import BBoxAccuracyOp
-from detectron.ops.add_fine_cls import AddFineClsOp
+
+from detectron.ops.add_hard_pos_roi_81_cls import AddHardPosRoi81ClsOp
 from detectron.ops.add_roi_81_cls import AddRoi81ClsOp
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
-import detectron.roi_data.fine_cls as fine_cls_roi_data
+
 import detectron.roi_data.roi_81_cls as roi_81_cls_roi_data
+import detectron.roi_data.hard_pos_roi_81_cls as hard_pos_roi_81_cls_roi_data
 import detectron.roi_data.cascade_rcnn as cascade_rcnn_roi_data
 import detectron.utils.c2 as c2_utils
 
@@ -236,9 +238,14 @@ class DetectionModelHelper(cnn.CNNModelHelper):
 
     def AddRoi81Cls(self):
         if self.train:
-            blobs_in = ['all_rois']
-            blobs_in += ['all_labels_int32']
-            blobs_in += ['all_roi_cls_prob']
+            if cfg.MODEL.ALL_ROI_ON:
+                blobs_in = ['all_rois']
+                blobs_in += ['all_labels_int32']
+                blobs_in += ['all_roi_cls_prob']
+            else:
+                blobs_in = ['rois']
+                blobs_in += ['labels_int32']
+                blobs_in += ['cls_prob']
         else:
             blobs_in = ['rois']
             # blobs_in+=[str(category)]
@@ -258,6 +265,28 @@ class DetectionModelHelper(cnn.CNNModelHelper):
 
         return outputs
 
+    def AddHardPosRoi81Cls(self):
+        blobs_in = ['roi_81_cls']
+        if self.train:
+            blobs_in += ['labels_int32_roi_81_cls']
+            blobs_in += ['roi_81_cls_prob']
+
+            # blobs_in+=[str(category)]
+        blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
+        name = 'AddRoi81ClsOp:' + ','.join(
+            [str(b) for b in blobs_in]
+        )
+
+        # Prepare output blobs
+        blobs_out = hard_pos_roi_81_cls_roi_data.get_hard_pos_roi_81_cls_blob_names(is_training=self.train
+        )
+        blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
+
+        outputs = self.net.Python(
+            AddHardPosRoi81ClsOp(self.train).forward
+        )(blobs_in, blobs_out, name=name)
+
+        return outputs
 
 
 

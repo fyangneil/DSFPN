@@ -47,7 +47,7 @@ def get_fast_rcnn_blob_names(is_training=True):
         # labels_int32 blob: R categorical labels in [0, ..., K] for K
         # foreground classes plus background
         blob_names += ['labels_int32']
-        if cfg.MODEL.ROI_HARD_NEG_ON:
+        if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
             blob_names += ['all_rois']
             blob_names += ['all_labels_int32']
     if is_training:
@@ -96,10 +96,10 @@ def get_fast_rcnn_blob_names(is_training=True):
         # Same format as rois blob, but one per FPN level
         for lvl in range(k_min, k_max + 1):
             blob_names += ['rois_fpn' + str(lvl)]
-            if cfg.MODEL.ROI_HARD_NEG_ON and is_training:
+            if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
                 blob_names += ['all_rois_fpn' + str(lvl)]
         blob_names += ['rois_idx_restore_int32']
-        if cfg.MODEL.ROI_HARD_NEG_ON and is_training:
+        if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
             blob_names += ['all_rois_idx_restore_int32']
         if is_training:
             if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
@@ -150,7 +150,7 @@ def _sample_rois(roidb, im_scale, batch_idx):
     # print('fg_inds',fg_inds.size)
     # Guard against the case when an image has fewer than fg_rois_per_image
     # foreground RoIs
-    if cfg.MODEL.ROI_HARD_NEG_ON:
+    if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
         all_fg_inds=fg_inds.copy()
 
     if cfg.MODEL.ROI_2CLS_LOSS_OFF:
@@ -170,7 +170,7 @@ def _sample_rois(roidb, im_scale, batch_idx):
     )[0]
     # Compute number of background RoIs to take from this image (guarding
     # against there being fewer than desired)
-    if cfg.MODEL.ROI_HARD_NEG_ON:
+    if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
         all_bg_inds =bg_inds.copy()
     if cfg.MODEL.ROI_2CLS_LOSS_OFF:
         bg_rois_per_this_image=bg_inds.size
@@ -184,12 +184,12 @@ def _sample_rois(roidb, im_scale, batch_idx):
         )
 
     # The indices that we're selecting (both fg and bg)
-    if cfg.MODEL.ROI_HARD_NEG_ON:
+    if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
         all_keep_inds = np.append(all_fg_inds, all_bg_inds)
     keep_inds = np.append(fg_inds, bg_inds)
 
     # Label is the class each RoI has max overlap with
-    if cfg.MODEL.ROI_HARD_NEG_ON:
+    if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
         all_sampled_labels = roidb['max_classes'][all_keep_inds]
         all_sampled_labels[all_fg_inds.size:] = 0
         all_sampled_boxes = roidb['boxes'][all_keep_inds]
@@ -223,12 +223,13 @@ def _sample_rois(roidb, im_scale, batch_idx):
     sampled_rois = sampled_boxes * im_scale
     repeated_batch_idx = batch_idx * blob_utils.ones((sampled_rois.shape[0], 1))
     sampled_rois = np.hstack((repeated_batch_idx, sampled_rois))
-    if cfg.MODEL.ROI_HARD_NEG_ON:
+    if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
         all_sampled_rois = all_sampled_boxes * im_scale
         repeated_batch_idx = batch_idx * blob_utils.ones((all_sampled_rois.shape[0], 1))
         all_sampled_rois = np.hstack((repeated_batch_idx, all_sampled_rois))
 
     # Base Fast R-CNN blobs
+
     blob_dict = dict(
         labels_int32=sampled_labels.astype(np.int32, copy=False),
         rois=sampled_rois,
@@ -236,9 +237,10 @@ def _sample_rois(roidb, im_scale, batch_idx):
         bbox_inside_weights=bbox_inside_weights,
         bbox_outside_weights=bbox_outside_weights,
         mapped_gt_boxes=mapped_gt_boxes,
-        all_rois=all_sampled_rois,
-        all_labels_int32=all_sampled_labels.astype(np.int32, copy=False)
     )
+    if cfg.MODEL.ALL_ROI_ON:
+        blob_dict['all_rois']=all_sampled_rois
+        blob_dict['all_labels_int32'] = all_sampled_labels.astype(np.int32, copy=False)
 
     # Optionally add Mask R-CNN blobs
     if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
@@ -310,7 +312,7 @@ def _add_multilevel_rois(blobs):
         )
 
     _distribute_rois_over_fpn_levels('rois')
-    if cfg.MODEL.ROI_HARD_NEG_ON:
+    if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
         _distribute_rois_over_fpn_levels('all_rois')
     if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
         _distribute_rois_over_fpn_levels('mask_rois')
