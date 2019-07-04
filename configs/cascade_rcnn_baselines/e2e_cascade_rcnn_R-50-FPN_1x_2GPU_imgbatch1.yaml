@@ -9,26 +9,25 @@ MODEL:
   ROI_2CLS_ON: False
   ROI_81CLS_ON: True
   ROI_2CLS_LOSS_OFF: False
-  ROI_HARD_NEG_ON: True
+  ROI_HARD_NEG_ON: False
   ROI_HARD_POS_ON: False
   ALL_ROI_ON: False
-  DECOUPLE_CLS_REG: True
-  FINE_FEATURE_ON: True
+  DECOUPLE_CLS_REG: False
 NUM_GPUS: 2
 SOLVER:
   WEIGHT_DECAY: 0.0001
   LR_POLICY: steps_with_decay
-  BASE_LR: 0.005
+  BASE_LR: 0.00
   GAMMA: 0.1
-  MAX_ITER: 65000
-  STEPS: [0, 43000, 57000]
+  MAX_ITER: 130000
+  STEPS: [0, 86000, 114000]
 FPN:
   FPN_ON: True
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
 FAST_RCNN:
-  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head
-  ALL_ROI_BOX_HEAD: fast_rcnn_heads.add_all_roi_2mlp_decouple_head #add_all_roi_2mlp_head
+  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head
+  ALL_ROI_BOX_HEAD: fast_rcnn_heads.add_all_roi_2mlp_head #add_all_roi_2mlp_decouple_head
   ROI_XFORM_METHOD: RoIAlign
   ROI_XFORM_RESOLUTION: 7
   ROI_XFORM_SAMPLING_RATIO: 2
@@ -49,7 +48,7 @@ TRAIN:
   BATCH_SIZE_PER_IM: 512
   RPN_PRE_NMS_TOP_N: 2000  # Per FPN level
   RPN_POST_NMS_TOP_N: 2000
-
+  IMS_PER_BATCH: 1
 #  RPN_POSITIVE_OVERLAP: 0.5
 #  RPN_BATCH_SIZE_PER_IM: 1024
 #  SNAPSHOT_ITERS: 2000

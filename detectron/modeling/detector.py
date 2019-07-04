@@ -432,7 +432,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
             )
         # Only return the first blob (the transformed features)
         return xform_out[0] if isinstance(xform_out, tuple) else xform_out
-
     def ConvShared(
         self,
         blob_in,

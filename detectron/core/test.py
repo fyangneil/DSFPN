@@ -228,7 +228,8 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
         # super_cls_ind = np.intersect1d(ind1, ind2)
 
         # roi_81_cls_scores[sel_obj_ind1, :]=0
-        scores=roi_81_cls_scores
+        # scores=roi_81_cls_scores
+
 
         if cfg.MODEL.ROI_HARD_POS_ON:
             hard_pos_roi_81_cls_prob_name = 'hard_pos_roi_81_cls_prob'

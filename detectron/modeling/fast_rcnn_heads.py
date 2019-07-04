@@ -79,6 +79,42 @@ def add_fast_rcnn_outputs(model, blob_in, dim):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
 
+def add_fast_rcnn_decouple_outputs(model, blob_in_cls,blob_in_reg, dim):
+    """Add RoI classification and bounding box regression output ops."""
+    # Box classification layer
+    model.FC(
+        blob_in_cls,
+        'cls_score',
+        dim,
+        2 if cfg.MODEL.ROI_2CLS_ON else model.num_classes,
+        weight_init=gauss_fill(0.01),
+        bias_init=const_fill(0.0)
+    )
+    if not model.train or cfg.MODEL.ROI_81CLS_ON:  # == if test
+        # Only add softmax when testing; during training the softmax is combined
+        # with the label cross entropy loss for numerical stability
+        model.Softmax('cls_score', 'cls_prob', engine='CUDNN')
+    # Box regression layer
+    num_bbox_reg_classes = (
+        2 if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG else model.num_classes
+    )
+    model.FC(
+        blob_in_reg,
+        'bbox_pred',
+        dim,
+        num_bbox_reg_classes * 4,
+        weight_init=gauss_fill(0.001),
+        bias_init=const_fill(0.0)
+    )
+
+    if cfg.MODEL.CASCADE_ON:
+        # add stage parameters to list
+        if '1' not in model.stage_params:
+            model.stage_params['1'] = []
+        for idx in range(-2, 0):
+            model.stage_params['1'].append(model.weights[idx])
+            model.stage_params['1'].append(model.biases[idx])
+
 def add_fast_rcnn_all_roi_outputs(model, blob_in, dim):
     """Add RoI classification and bounding box regression output ops."""
     # Box classification layer
@@ -172,6 +208,46 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
             model.stage_params['1'].append(model.biases[idx])
     return 'fc7', hidden_dim
 
+def add_roi_2mlp_decouple_head(model, blob_in, dim_in, spatial_scale):
+    """Add a ReLU MLP with two hidden layers."""
+    hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
+    roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+    roi_feat = model.RoIFeatureTransform(
+        blob_in,
+        'roi_feat',
+        blob_rois='rois',
+        method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+        resolution=roi_size,
+        sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+        spatial_scale=spatial_scale
+    )
+
+    # normalize the gradient by the number of cascade heads
+    if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_GRAD:
+        grad_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
+        model.net.Scale(
+            roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
+        )
+
+    model.FC(roi_feat, 'fc6_cls', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6_cls', 'fc6_cls')
+    model.FC('fc6_cls', 'fc7_cls', hidden_dim, hidden_dim)
+    model.Relu('fc7_cls', 'fc7_cls')
+
+    model.FC(roi_feat, 'fc6_reg', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6_reg', 'fc6_reg')
+    model.FC('fc6_reg', 'fc7_reg', hidden_dim, hidden_dim)
+    model.Relu('fc7_reg', 'fc7_reg')
+
+    if cfg.MODEL.CASCADE_ON:
+        # add stage parameters to list
+        if '1' not in model.stage_params:
+            model.stage_params['1'] = []
+        for idx in range(-2, 0):
+            model.stage_params['1'].append(model.weights[idx])
+            model.stage_params['1'].append(model.biases[idx])
+    return 'fc7_cls','fc7_reg', hidden_dim
+
 def add_all_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     """Add a ReLU MLP with two hidden layers."""
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
@@ -208,6 +284,53 @@ def add_all_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
         "all_roi_fc7",
         weight="fc7_w",
         bias="fc7_b",
+    )
+    model.Relu('all_roi_fc7', 'all_roi_fc7')
+
+    if cfg.MODEL.CASCADE_ON:
+        # add stage parameters to list
+        if '1' not in model.stage_params:
+            model.stage_params['1'] = []
+        for idx in range(-2, 0):
+            model.stage_params['1'].append(model.weights[idx])
+            model.stage_params['1'].append(model.biases[idx])
+    return 'all_roi_fc7', hidden_dim
+def add_all_roi_2mlp_decouple_head(model, blob_in, dim_in, spatial_scale):
+    """Add a ReLU MLP with two hidden layers."""
+    hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
+    roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+    roi_feat = model.RoIFeatureTransform(
+        blob_in,
+        'all_roi_feat',
+        blob_rois='all_rois',
+        method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+        resolution=roi_size,
+        sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+        spatial_scale=spatial_scale
+    )
+
+    # normalize the gradient by the number of cascade heads
+    if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_GRAD:
+        grad_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
+        model.net.Scale(
+            roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
+        )
+
+    # model.FC(roi_feat, 'fc6', dim_in * roi_size * roi_size, hidden_dim)
+    model.FCShared(
+        roi_feat,
+        "all_roi_fc6",
+        weight="fc6_cls_w",
+        bias="fc6_cls_b",
+    )
+
+    model.Relu('all_roi_fc6', 'all_roi_fc6')
+    # model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
+    model.FCShared(
+        'all_roi_fc6',
+        "all_roi_fc7",
+        weight="fc7_cls_w",
+        bias="fc7_cls_b",
     )
     model.Relu('all_roi_fc7', 'all_roi_fc7')
 

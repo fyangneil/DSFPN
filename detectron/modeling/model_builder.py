@@ -197,6 +197,10 @@ def build_generic_detection_model(
         # Add the conv body (called "backbone architecture" in papers)
         # E.g., ResNet-50, ResNet-50-FPN, ResNeXt-101-FPN, etc.
         blob_conv, dim_conv, spatial_scale_conv = add_conv_body_func(model)
+        if cfg.MODEL.FINE_FEATURE_ON:
+            blob_inner_lateral_conv=blob_conv[-4:]
+            del blob_conv[-4:]
+
         if freeze_conv_body:
             for b in c2_utils.BlobReferenceList(blob_conv):
                 model.StopGradient(b, b)
@@ -229,17 +233,30 @@ def build_generic_detection_model(
         if not cfg.MODEL.RPN_ONLY:
             # Add the Fast R-CNN head
             if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
-                head_loss_gradients['box'] = _add_fast_rcnn_hard_neg_head(
-                    model, add_roi_box_head_func,add_all_roi_box_head_func, blob_conv, dim_conv,
-                    spatial_scale_conv
-                )
+                if cfg.MODEL.DECOUPLE_CLS_REG:
+                    head_loss_gradients['box'] = _add_fast_rcnn_hard_neg_decouple_head(
+                        model, add_roi_box_head_func, add_all_roi_box_head_func, blob_conv, dim_conv,
+                        spatial_scale_conv
+                    )
+                else:
+                    head_loss_gradients['box'] = _add_fast_rcnn_hard_neg_head(
+                        model, add_roi_box_head_func,add_all_roi_box_head_func, blob_conv, dim_conv,
+                        spatial_scale_conv
+                    )
 
             else:
-                head_loss_gradients['box'] = _add_fast_rcnn_head(
+                if cfg.MODEL.DECOUPLE_CLS_REG:
+                    head_loss_gradients['box'] = _add_fast_rcnn_decouple_head(
                     model, add_roi_box_head_func, blob_conv, dim_conv,
                     spatial_scale_conv
                 )
+                else:
+                    head_loss_gradients['box'] = _add_fast_rcnn_head(
+                        model, add_roi_box_head_func, blob_conv, dim_conv,
+                        spatial_scale_conv
+                    )
             if cfg.MODEL.ROI_81CLS_ON:
+
                 head_loss_gradients['roi_81_cls'] = _add_roi_81_cls_head(
                     model, add_roi_81_cls_head_func, blob_conv, dim_conv,
                     spatial_scale_conv
@@ -322,6 +339,25 @@ def _add_fast_rcnn_head(
     else:
         loss_gradients = None
     return loss_gradients
+
+def _add_fast_rcnn_decouple_head(
+    model, add_roi_box_decouple_head_func, blob_in, dim_in, spatial_scale_in
+):
+    """Add a Fast R-CNN head to the model."""
+
+    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_box_decouple_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    fast_rcnn_heads.add_fast_rcnn_decouple_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn)
+    if model.train:
+        if cfg.MODEL.ROI_2CLS_LOSS_OFF:
+            loss_gradients = None
+        else:
+            loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
+
+    else:
+        loss_gradients = None
+    return loss_gradients
 def _add_fast_rcnn_hard_neg_head(
     model, add_roi_box_head_func,add_all_roi_box_head_func, blob_in, dim_in, spatial_scale_in
 ):
@@ -331,6 +367,30 @@ def _add_fast_rcnn_hard_neg_head(
         model, blob_in, dim_in, spatial_scale_in
     )
     fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn, dim_frcn)
+
+    blob_frcn_all_roi, dim_frcn_all_roi = add_all_roi_box_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    fast_rcnn_heads.add_fast_rcnn_all_roi_outputs(model, blob_frcn_all_roi, dim_frcn_all_roi)
+
+    if model.train:
+        if cfg.MODEL.ROI_2CLS_LOSS_OFF:
+            loss_gradients = None
+        else:
+            loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
+
+    else:
+        loss_gradients = None
+    return loss_gradients
+def _add_fast_rcnn_hard_neg_decouple_head(
+    model, add_roi_box_head_func,add_all_roi_box_head_func, blob_in, dim_in, spatial_scale_in
+):
+    """Add a Fast R-CNN head to the model."""
+
+    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_box_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    fast_rcnn_heads.add_fast_rcnn_decouple_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn)
 
     blob_frcn_all_roi, dim_frcn_all_roi = add_all_roi_box_head_func(
         model, blob_in, dim_in, spatial_scale_in

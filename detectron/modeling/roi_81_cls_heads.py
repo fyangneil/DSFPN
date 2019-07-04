@@ -131,6 +131,7 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     return 'fc7_roi_81_cls', hidden_dim
 
 
+
 def add_roi_Xconv1fc_head(model, blob_in, dim_in, spatial_scale):
     """Add a X conv + 1fc head, as a reference if not using GroupNorm"""
     hidden_dim = cfg.FAST_RCNN.CONV_HEAD_DIM

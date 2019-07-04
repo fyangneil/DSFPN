@@ -178,36 +178,6 @@ def _sample_rois(rois, label,pred_cls_score):
     sel_obj_ind = reduce(np.union1d, (gt_neg_ind,gt_hard_neg_ind, gt_pos_ind))
 
 
-
-    # sel_obj_ind1=np.where(max_cls_label==0)[0]
-    # sel_obj_score=max_cls_score[sel_obj_ind1]
-    # sort_ind=np.argsort(sel_obj_score)
-    # # sort_score = np.sort(sel_obj_score)
-    # # get hard negatives
-    # hard_negs_ind=np.where(max_cls_label[sel_obj_ind1]!=sampled_labels_binary[sel_obj_ind1])[0]
-    # hard_negs_ind=sel_obj_ind1[hard_negs_ind]
-    # hard_negs_ind_thr=np.where(max_cls_score[hard_negs_ind]>0.3)[0]
-    # hard_negs_ind=hard_negs_ind[hard_negs_ind_thr]
-    #
-    # non_foreground_num=int(sort_ind.size*0.6)
-    # negs_ind=sel_obj_ind1[sort_ind[:non_foreground_num]]
-    #
-    #
-    # sel_obj_ind2=np.where(max_cls_label ==1)[0]
-    # sel_obj_ind3=np.where(sampled_labels_binary==1)[0]
-    #
-    # pos_ind=reduce(np.union1d, (sel_obj_ind2, sel_obj_ind3))
-    #
-    # pos_num=pos_ind.size
-    # neg_num=np.minimum(2.5*pos_num,negs_ind.size)
-    #
-    # if negs_ind.size > 0:
-    #     negs_ind = npr.choice(
-    #         negs_ind, size=neg_num, replace=False
-    #     )
-    # negs_ind = reduce(np.union1d, (negs_ind, hard_negs_ind))
-    # sel_obj_ind = reduce(np.union1d, (negs_ind, sel_obj_ind2,sel_obj_ind3))
-
     sampled_rois=sampled_rois[sel_obj_ind]
     sampled_labels=sampled_labels[sel_obj_ind]
 

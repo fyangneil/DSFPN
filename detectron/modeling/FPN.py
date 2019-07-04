@@ -156,7 +156,7 @@ def add_fpn(model, fpn_level_info):
         )
         output_blobs[0] = c  # rename it
     else:
-        model.Conv(
+        inner_layers=model.Conv(
             lateral_input_blobs[0],
             output_blobs[0],
             dim_in=fpn_dim_lateral[0],
@@ -167,6 +167,9 @@ def add_fpn(model, fpn_level_info):
             weight_init=xavier_fill,
             bias_init=const_fill(0.0)
         )
+    if cfg.MODEL.FINE_FEATURE_ON:
+        inner_layers_list=[]
+        inner_layers_list+=[inner_layers]
 
     #
     # Step 1: recursively build down starting from the coarsest backbone level
@@ -174,7 +177,7 @@ def add_fpn(model, fpn_level_info):
 
     # For other levels add top-down and lateral connections
     for i in range(num_backbone_stages - 1):
-        add_topdown_lateral_module(
+        inner_layers=add_topdown_lateral_module(
             model,
             output_blobs[i],             # top-down blob
             lateral_input_blobs[i + 1],  # lateral blob
@@ -182,6 +185,7 @@ def add_fpn(model, fpn_level_info):
             fpn_dim,                     # output dimension
             fpn_dim_lateral[i + 1]       # lateral input dimension
         )
+        inner_layers_list+=[inner_layers]
 
     # Post-hoc scale-specific 3x3 convs
     blobs_fpn = []
@@ -252,6 +256,8 @@ def add_fpn(model, fpn_level_info):
             dim_in = fpn_dim
             blobs_fpn.insert(0, fpn_blob)
             spatial_scales.insert(0, spatial_scales[0] * 0.5)
+    if cfg.MODEL.FINE_FEATURE_ON:
+        blobs_fpn+=inner_layers_list
 
     return blobs_fpn, fpn_dim, spatial_scales
 
@@ -296,6 +302,7 @@ def add_topdown_lateral_module(
     td = model.net.UpsampleNearest(fpn_top, fpn_bottom + '_topdown', scale=2)
     # Sum lateral and top-down
     model.net.Sum([lat, td], fpn_bottom)
+    return lat
 
 
 def get_min_max_levels():
