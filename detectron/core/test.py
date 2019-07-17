@@ -198,10 +198,7 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
 
     pred_cls = np.argmax((scores), 1)
     pred_cls_score = np.max((scores), 1)
-    ind1 = np.where((pred_cls > 0))[0]
-    ind2 = np.where((pred_cls_score > 0.0))[0]
-    cls_ind = np.intersect1d(ind1, ind2)
-    # pred_cls_score = np.reshape(pred_cls_score, (pred_cls_score.size, -1))
+
 
     if cfg.MODEL.ROI_81CLS_ON:
 
@@ -209,26 +206,34 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
         roi_81_cls_scores = workspace.FetchBlob(core.ScopedName(roi_81_cls_prob_name)).squeeze()
         roi_81_cls_scores = roi_81_cls_scores.reshape([-1, roi_81_cls_scores.shape[-1]])
 
-        # pred_roi_81_cls=np.argmax((roi_81_cls_scores),1)
-        # # convert to fine cls label
-        # start_cls = super2fine_map[cat][0]
-        # end_cls = super2fine_map[cat][1]
-        # pred_super_cls[pred_super_cls>0]=pred_super_cls[pred_super_cls>0]+start_cls-1
-        # non_sel=np.where((pred_super_cls<start_cls)|(pred_super_cls>end_cls))[0]
-        # pred_super_cls[non_sel]=0
-        #
-        #
-        # pred_super_cls_score = np.max((super_cls_scores), 1)
+
         sel_obj_ind1 = np.where(pred_cls == 0)[0]
         sel_obj_score = pred_cls_score[sel_obj_ind1]
         sort_ind = np.argsort(sel_obj_score)
-        non_foreground_num = int(sort_ind.size * 0.3)
+        non_foreground_num = int(sort_ind.size * 0.5)
         sel_obj_ind1=sel_obj_ind1[sort_ind[non_foreground_num:]]
-        # ind2 = np.where((pred_super_cls_score > 0.0))[0]
-        # super_cls_ind = np.intersect1d(ind1, ind2)
 
-        # roi_81_cls_scores[sel_obj_ind1, :]=0
-        # scores=roi_81_cls_scores
+
+        roi_81_cls_scores[sel_obj_ind1, :]=0
+        scores=roi_81_cls_scores
+        # fuse detection
+        if 0:
+            roi_81_pred_scores=np.max(roi_81_cls_scores,1)
+            roi_81_pred_cls = np.argmax(roi_81_cls_scores, 1)
+
+            same_cls_ind=np.where(pred_cls==roi_81_pred_cls)[0]
+            larger_score_ind_tmp=np.where(roi_81_pred_scores[same_cls_ind]>pred_cls_score[same_cls_ind])[0]
+
+            scores[same_cls_ind[larger_score_ind_tmp],pred_cls[same_cls_ind[larger_score_ind_tmp]]]=roi_81_pred_scores[same_cls_ind[larger_score_ind_tmp]]
+        # max out
+        if 0:
+            roi_81_pred_scores = np.max(roi_81_cls_scores, 1)
+            roi_81_pred_cls = np.argmax(roi_81_cls_scores, 1)
+            max_out_socre_ind=np.where(roi_81_pred_scores>pred_cls_score)[0]
+            max_out_socre=roi_81_pred_scores[max_out_socre_ind]
+            max_out_cls = roi_81_pred_cls[max_out_socre_ind]
+            scores[max_out_socre_ind,max_out_cls]=max_out_socre
+
 
 
         if cfg.MODEL.ROI_HARD_POS_ON:

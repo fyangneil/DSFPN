@@ -232,7 +232,7 @@ def build_generic_detection_model(
 
         if not cfg.MODEL.RPN_ONLY:
             # Add the Fast R-CNN head
-            if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON:
+            if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON and model.train:
                 if cfg.MODEL.DECOUPLE_CLS_REG:
                     head_loss_gradients['box'] = _add_fast_rcnn_hard_neg_decouple_head(
                         model, add_roi_box_head_func, add_all_roi_box_head_func, blob_conv, dim_conv,
@@ -258,7 +258,7 @@ def build_generic_detection_model(
             if cfg.MODEL.ROI_81CLS_ON:
 
                 head_loss_gradients['roi_81_cls'] = _add_roi_81_cls_head(
-                    model, add_roi_81_cls_head_func, blob_conv, dim_conv,
+                    model, add_roi_81_cls_head_func, blob_inner_lateral_conv, dim_conv,
                     spatial_scale_conv
                 )
             if cfg.MODEL.ROI_HARD_POS_ON:
@@ -420,6 +420,21 @@ def _add_roi_81_cls_head(
     else:
         loss_gradients = None
     return loss_gradients
+def _add_roi_81_cls_head_lateral_fpn(
+    model, add_roi_81_cls_head_func, blob_in_lateral,blob_in_fpn, dim_in, spatial_scale_in
+):
+    """Add a super cls head to the model."""
+    roi_81_cls_heads.add_roi_81_cls_inputs(model)
+    blob_frcn, dim_frcn = add_roi_81_cls_head_func(
+        model, blob_in_lateral,blob_in_fpn, dim_in, spatial_scale_in
+    )
+    roi_81_cls_heads.add_roi_81_cls_outputs(model, blob_frcn, dim_frcn)
+    if model.train:
+        loss_gradients = roi_81_cls_heads.add_roi_81_cls_losses(model)
+    else:
+        loss_gradients = None
+    return loss_gradients
+
 
 def _add_hard_pos_roi_81_cls_head(
     model, add_hard_pos_roi_81_cls_head_func, blob_in, dim_in, spatial_scale_in

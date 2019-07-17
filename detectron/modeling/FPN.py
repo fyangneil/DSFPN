@@ -185,7 +185,8 @@ def add_fpn(model, fpn_level_info):
             fpn_dim,                     # output dimension
             fpn_dim_lateral[i + 1]       # lateral input dimension
         )
-        inner_layers_list+=[inner_layers]
+        if cfg.MODEL.FINE_FEATURE_ON:
+            inner_layers_list+=[inner_layers]
 
     # Post-hoc scale-specific 3x3 convs
     blobs_fpn = []

@@ -9,11 +9,13 @@ MODEL:
   ROI_2CLS_ON: False
   ROI_81CLS_ON: True
   ROI_2CLS_LOSS_OFF: False
-  ROI_HARD_NEG_ON: True
+  ROI_HARD_NEG_ON: False
   ROI_HARD_POS_ON: False
   ALL_ROI_ON: False
   DECOUPLE_CLS_REG: True
   FINE_FEATURE_ON: True
+  PATCH_FEATURE_ON: False
+  PATCH_FEATURE_81CLS_ON: True
 NUM_GPUS: 2
 SOLVER:
   WEIGHT_DECAY: 0.0001
@@ -33,7 +35,7 @@ FAST_RCNN:
   ROI_XFORM_RESOLUTION: 7
   ROI_XFORM_SAMPLING_RATIO: 2
 ROI_81CLS:
-  ROI_BOX_HEAD: roi_81_cls_heads.add_roi_2mlp_head
+  ROI_BOX_HEAD: roi_81_cls_heads.add_roi_parch_2mlp_head #add_roi_2mlp_head #add_roi_2mlp_head_lateral_fpn #add_roi_2mlp_head
 HARD_POS_ROI_81CLS:
   ROI_BOX_HEAD: hard_pos_roi_81_cls_heads.add_roi_2mlp_head
 CASCADE_RCNN:

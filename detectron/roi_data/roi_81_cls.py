@@ -46,6 +46,12 @@ def get_roi_81_cls_blob_names(is_training=True):
     # (batch_idx, x1, y1, x2, y2) specifying an image batch index and a
     # rectangle (x1, y1, x2, y2)
     blob_names = ['roi_81_cls']
+    if cfg.MODEL.PATCH_FEATURE_81CLS_ON:
+        blob_names += ['roi_81_cls_p1']
+        blob_names += ['roi_81_cls_p2']
+        blob_names += ['roi_81_cls_p3']
+        blob_names += ['roi_81_cls_p4']
+        blob_names += ['roi_81_cls_p5']
     if is_training:
         # labels_int32 blob: R categorical labels in [0, ..., K] for K
         # foreground classes plus background
@@ -143,7 +149,6 @@ def _sample_rois(rois, label,pred_cls_score):
     max_cls_score = np.max(pred_cls_score, axis=1)
 
 
-
     # hard negatives
     gt_neg_ind=np.where(sampled_labels_binary==0)[0]
 
@@ -180,12 +185,35 @@ def _sample_rois(rois, label,pred_cls_score):
 
     sampled_rois=sampled_rois[sel_obj_ind]
     sampled_labels=sampled_labels[sel_obj_ind]
+    # print('sampled_labels',sampled_labels.shape)
+    # relabel roi
+    if 0:
+        # remove non-vehicle rois
+        max_cls_label=max_cls_label[sel_obj_ind]
+        max_cls_score=max_cls_score[sel_obj_ind]
+        non_vehicle_ind=np.where((max_cls_label>9)|(max_cls_label==1)|(max_cls_label==0))[0]
+        non_vehicle_score=max_cls_score[non_vehicle_ind]
+        non_vehicle_ind_tmp=np.where(non_vehicle_score>0.8)[0]
+        print('non_vehicle_ind',non_vehicle_ind.shape)
+        non_vehicle_ind=non_vehicle_ind[non_vehicle_ind_tmp]
+        if non_vehicle_ind.size!=sel_obj_ind.size:
 
+
+            sampled_rois=np.delete(sampled_rois,non_vehicle_ind,0)
+            sampled_labels=np.delete(sampled_labels,non_vehicle_ind)
+            print('remove non-vehicle sampled_labels', sampled_labels.shape)
 
     labels_int32_roi_81_cls='labels_int32_roi_81_cls'
     roi_81_cls_rois='roi_81_cls'
 
     blob_dict = {labels_int32_roi_81_cls:sampled_labels.astype(np.int32, copy=False),roi_81_cls_rois:sampled_rois}
+    if cfg.MODEL.PATCH_FEATURE_81CLS_ON:
+        roi_p1,roi_p2,roi_p3,roi_p4,roi_p5=get_roi_various_patch(sampled_rois)
+        blob_dict['roi_81_cls_p1']=roi_p1
+        blob_dict['roi_81_cls_p2']=roi_p2
+        blob_dict['roi_81_cls_p3']=roi_p3
+        blob_dict['roi_81_cls_p4']=roi_p4
+        blob_dict['roi_81_cls_p5']=roi_p5
 
     return blob_dict
 
@@ -248,3 +276,95 @@ def _add_multilevel_rois(blobs):
         _distribute_rois_over_fpn_levels('mask_rois')
     if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
         _distribute_rois_over_fpn_levels('keypoint_rois')
+def get_roi_subpatch(sampled_rois):
+    """
+    p1:patch 1
+    p2:patch 2
+    p3:patch 3
+    p4:patch 4
+    p5:patch 5
+    """
+    im_ind=sampled_rois[:, 0:1]
+    x1 = sampled_rois[:,1:2]
+    y1 = sampled_rois[:, 2:3]
+    x2 = sampled_rois[:, 3:4]
+    y2 = sampled_rois[:, 4:]
+    w=x2-x1
+    h=y2-y1
+    # patch 1
+    roi_p1_x1=x1
+    roi_p1_y1 = y1
+    roi_p1_x2 = x1+w/2
+    roi_p1_y2 = y1 + h / 2
+    roi_p1=np.concatenate((im_ind,roi_p1_x1,roi_p1_y1,roi_p1_x2,roi_p1_y2),axis=1)
+    # patch 2
+    roi_p2_x1 = x1+w/2
+    roi_p2_y1 = y1
+    roi_p2_x2 = x2
+    roi_p2_y2 = y1 + h / 2
+    roi_p2 = np.concatenate((im_ind, roi_p2_x1, roi_p2_y1, roi_p2_x2, roi_p2_y2), axis=1)
+    # patch 3
+    roi_p3_x1 = x1
+    roi_p3_y1 = y1+h/2
+    roi_p3_x2 = x1+w/2
+    roi_p3_y2 = y2
+    roi_p3 = np.concatenate((im_ind, roi_p3_x1, roi_p3_y1, roi_p3_x2, roi_p3_y2), axis=1)
+    # patch 4
+    roi_p4_x1 = x1+w/2
+    roi_p4_y1 = y1 + h / 2
+    roi_p4_x2 = x2
+    roi_p4_y2 = y2
+    roi_p4 = np.concatenate((im_ind, roi_p4_x1, roi_p4_y1, roi_p4_x2, roi_p4_y2), axis=1)
+    # patch 5
+    roi_p5_x1 = x1 + w / 4
+    roi_p5_y1 = y1 + h / 4
+    roi_p5_x2 = x2-w / 4
+    roi_p5_y2 = y2-w / 4
+    roi_p5 = np.concatenate((im_ind, roi_p5_x1, roi_p5_y1, roi_p5_x2, roi_p5_y2), axis=1)
+    return roi_p1,roi_p2,roi_p3,roi_p4,roi_p5
+def get_roi_various_patch(sampled_rois):
+    """
+    p1:patch 1
+    p2:patch 2
+    p3:patch 3
+    p4:patch 4
+    p5:patch 5
+    """
+    im_ind=sampled_rois[:, 0:1]
+    x1 = sampled_rois[:,1:2]
+    y1 = sampled_rois[:, 2:3]
+    x2 = sampled_rois[:, 3:4]
+    y2 = sampled_rois[:, 4:]
+    w=x2-x1
+    h=y2-y1
+    # patch 1
+    roi_p1_x1=x1
+    roi_p1_y1 = y1
+    roi_p1_x2 = x1+w*0.8
+    roi_p1_y2 = y1 + h*0.8
+    roi_p1=np.concatenate((im_ind,roi_p1_x1,roi_p1_y1,roi_p1_x2,roi_p1_y2),axis=1)
+    # patch 2
+    roi_p2_x1 = x1+w*0.2
+    roi_p2_y1 = y1
+    roi_p2_x2 = x2
+    roi_p2_y2 = y1 + h*0.2
+    roi_p2 = np.concatenate((im_ind, roi_p2_x1, roi_p2_y1, roi_p2_x2, roi_p2_y2), axis=1)
+    # patch 3
+    roi_p3_x1 = x1
+    roi_p3_y1 = y1+h*0.2
+    roi_p3_x2 = x1+w*0.8
+    roi_p3_y2 = y2
+    roi_p3 = np.concatenate((im_ind, roi_p3_x1, roi_p3_y1, roi_p3_x2, roi_p3_y2), axis=1)
+    # patch 4
+    roi_p4_x1 = x1+w*0.2
+    roi_p4_y1 = y1 + h*0.2
+    roi_p4_x2 = x2
+    roi_p4_y2 = y2
+    roi_p4 = np.concatenate((im_ind, roi_p4_x1, roi_p4_y1, roi_p4_x2, roi_p4_y2), axis=1)
+    # patch 5
+    roi_p5_x1 = x1 + w * 0.2
+    roi_p5_y1 = y1 + h * 0.2
+    roi_p5_x2 = x2-w *0.2
+    roi_p5_y2 = y2-w *0.2
+    roi_p5 = np.concatenate((im_ind, roi_p5_x1, roi_p5_y1, roi_p5_x2, roi_p5_y2), axis=1)
+    return roi_p1,roi_p2,roi_p3,roi_p4,roi_p5

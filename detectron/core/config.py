@@ -499,7 +499,8 @@ __C.MODEL.ROI_HARD_POS_ON=False
 __C.MODEL.ALL_ROI_ON=False
 __C.MODEL.DECOUPLE_CLS_REG=False
 __C.MODEL.FINE_FEATURE_ON=False
-
+__C.MODEL.PATCH_FEATURE_ON=False
+__C.MODEL.PATCH_FEATURE_81CLS_ON=False
 
 
 # ---------------------------------------------------------------------------- #

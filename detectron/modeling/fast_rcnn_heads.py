@@ -252,7 +252,7 @@ def add_all_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     """Add a ReLU MLP with two hidden layers."""
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
-    roi_feat = model.RoIFeatureTransform(
+    roi_feat = model.RoIFeatureTransform_addPatch(
         blob_in,
         'all_roi_feat',
         blob_rois='all_rois',
