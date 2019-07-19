@@ -662,7 +662,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     spatial_scale=sc,
                     sampling_ratio=sampling_ratio
                 )
-                if lvl==k_min:
+                if lvl==k_max:
                     for patch_i in range(1,6):
                         bl_rois_p = blob_rois + '_p'+str(patch_i)
                         bl_p_out = blob_out + '_p' + str(patch_i)+'_lvl'+str(lvl)
