@@ -258,7 +258,10 @@ def add_fpn(model, fpn_level_info):
             blobs_fpn.insert(0, fpn_blob)
             spatial_scales.insert(0, spatial_scales[0] * 0.5)
     if cfg.MODEL.FINE_FEATURE_ON:
+        if cfg.MODEL.DEEP_SUP_RPN_ON:
+            blobs_fpn+=[P6_name]
         blobs_fpn+=inner_layers_list
+
 
     return blobs_fpn, fpn_dim, spatial_scales
 
@@ -444,6 +447,122 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
                 spatial_scale=sc
             )
 
+def add_fpn_deep_sup_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
+    """Add RPN on FPN specific outputs."""
+    num_anchors = len(cfg.FPN.RPN_ASPECT_RATIOS)
+    dim_out = dim_in
+
+    k_max = cfg.FPN.RPN_MAX_LEVEL  # coarsest level of pyramid
+    k_min = cfg.FPN.RPN_MIN_LEVEL  # finest level of pyramid
+    assert len(blobs_in) == k_max - k_min + 1
+    for lvl in range(k_min, k_max + 1):
+        bl_in = blobs_in[k_max - lvl]  # blobs_in is in reversed order
+        sc = spatial_scales[k_max - lvl]  # in reversed order
+        slvl = str(lvl)
+
+        if lvl == k_min:
+            # Create conv ops with randomly initialized weights and
+            # zeroed biases for the first FPN level; these will be shared by
+            # all other FPN levels
+            # RPN hidden representation
+            conv_rpn_fpn = model.Conv(
+                bl_in,
+                'conv_deep_sup_rpn_fpn' + slvl,
+                dim_in,
+                dim_out,
+                kernel=3,
+                pad=1,
+                stride=1,
+                weight_init=gauss_fill(0.01),
+                bias_init=const_fill(0.0)
+            )
+            model.Relu(conv_rpn_fpn, conv_rpn_fpn)
+            # Proposal classification scores
+            rpn_cls_logits_fpn = model.Conv(
+                conv_rpn_fpn,
+                'deep_sup_rpn_cls_logits_fpn' + slvl,
+                dim_in,
+                num_anchors,
+                kernel=1,
+                pad=0,
+                stride=1,
+                weight_init=gauss_fill(0.01),
+                bias_init=const_fill(0.0)
+            )
+            # Proposal bbox regression deltas
+            rpn_bbox_pred_fpn = model.Conv(
+                conv_rpn_fpn,
+                'deep_sup_rpn_bbox_pred_fpn' + slvl,
+                dim_in,
+                4 * num_anchors,
+                kernel=1,
+                pad=0,
+                stride=1,
+                weight_init=gauss_fill(0.01),
+                bias_init=const_fill(0.0)
+            )
+        else:
+            # Share weights and biases
+            sk_min = str(k_min)
+            # RPN hidden representation
+            conv_rpn_fpn = model.ConvShared(
+                bl_in,
+                'conv_deep_sup_rpn_fpn' + slvl,
+                dim_in,
+                dim_out,
+                kernel=3,
+                pad=1,
+                stride=1,
+                weight='conv_deep_sup_rpn_fpn' + sk_min + '_w',
+                bias='conv_deep_sup_rpn_fpn' + sk_min + '_b'
+            )
+            model.Relu(conv_rpn_fpn, conv_rpn_fpn)
+            # Proposal classification scores
+            rpn_cls_logits_fpn = model.ConvShared(
+                conv_rpn_fpn,
+                'deep_sup_rpn_cls_logits_fpn' + slvl,
+                dim_in,
+                num_anchors,
+                kernel=1,
+                pad=0,
+                stride=1,
+                weight='deep_sup_rpn_cls_logits_fpn' + sk_min + '_w',
+                bias='deep_sup_rpn_cls_logits_fpn' + sk_min + '_b'
+            )
+            # Proposal bbox regression deltas
+            rpn_bbox_pred_fpn = model.ConvShared(
+                conv_rpn_fpn,
+                'deep_sup_rpn_bbox_pred_fpn' + slvl,
+                dim_in,
+                4 * num_anchors,
+                kernel=1,
+                pad=0,
+                stride=1,
+                weight='deep_sup_rpn_bbox_pred_fpn' + sk_min + '_w',
+                bias='deep_sup_rpn_bbox_pred_fpn' + sk_min + '_b'
+            )
+
+        # if not model.train or cfg.MODEL.FASTER_RCNN:
+        #     # Proposals are needed during:
+        #     #  1) inference (== not model.train) for RPN only and Faster R-CNN
+        #     #  OR
+        #     #  2) training for Faster R-CNN
+        #     # Otherwise (== training for RPN only), proposals are not needed
+        #     lvl_anchors = generate_anchors(
+        #         stride=2.**lvl,
+        #         sizes=(cfg.FPN.RPN_ANCHOR_START_SIZE * 2.**(lvl - k_min), ),
+        #         aspect_ratios=cfg.FPN.RPN_ASPECT_RATIOS
+        #     )
+        #     rpn_cls_probs_fpn = model.net.Sigmoid(
+        #         rpn_cls_logits_fpn, 'deep_sup_rpn_cls_probs_fpn' + slvl
+        #     )
+        #     model.GenerateProposals(
+        #         [rpn_cls_probs_fpn, rpn_bbox_pred_fpn, 'deep_sup_rpn_im_info'],
+        #         ['deep_sup_rpn_rois_fpn' + slvl, 'deep_sup_rpn_roi_probs_fpn' + slvl],
+        #         anchors=lvl_anchors,
+        #         spatial_scale=sc
+        #     )
+
 
 def add_fpn_rpn_losses(model):
     """Add RPN on FPN specific losses."""
@@ -493,6 +612,53 @@ def add_fpn_rpn_losses(model):
         model.AddLosses(['loss_rpn_cls_fpn' + slvl, 'loss_rpn_bbox_fpn' + slvl])
     return loss_gradients
 
+def add_fpn_deep_sup_rpn_losses(model):
+    """Add RPN on FPN specific losses."""
+    loss_gradients = {}
+    for lvl in range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1):
+        slvl = str(lvl)
+        # Spatially narrow the full-sized RPN label arrays to match the feature map
+        # shape
+        model.net.SpatialNarrowAs(
+            ['deep_sup_rpn_labels_int32_wide_fpn' + slvl, 'deep_sup_rpn_cls_logits_fpn' + slvl],
+            'deep_sup_rpn_labels_int32_fpn' + slvl
+        )
+        for key in ('targets', 'inside_weights', 'outside_weights'):
+            model.net.SpatialNarrowAs(
+                [
+                    'deep_sup_rpn_bbox_' + key + '_wide_fpn' + slvl,
+                    'deep_sup_rpn_bbox_pred_fpn' + slvl
+                ],
+                'deep_sup_rpn_bbox_' + key + '_fpn' + slvl
+            )
+        loss_rpn_cls_fpn = model.net.SigmoidCrossEntropyLoss(
+            ['deep_sup_rpn_cls_logits_fpn' + slvl, 'deep_sup_rpn_labels_int32_fpn' + slvl],
+            'loss_deep_sup_rpn_cls_fpn' + slvl,
+            normalize=0,
+            scale=(
+                model.GetLossScale() / cfg.TRAIN.RPN_BATCH_SIZE_PER_IM /
+                cfg.TRAIN.IMS_PER_BATCH
+            )
+        )
+        # Normalization by (1) RPN_BATCH_SIZE_PER_IM and (2) IMS_PER_BATCH is
+        # handled by (1) setting bbox outside weights and (2) SmoothL1Loss
+        # normalizes by IMS_PER_BATCH
+        loss_rpn_bbox_fpn = model.net.SmoothL1Loss(
+            [
+                'deep_sup_rpn_bbox_pred_fpn' + slvl, 'deep_sup_rpn_bbox_targets_fpn' + slvl,
+                'deep_sup_rpn_bbox_inside_weights_fpn' + slvl,
+                'deep_sup_rpn_bbox_outside_weights_fpn' + slvl
+            ],
+            'loss_deep_sup_rpn_bbox_fpn' + slvl,
+            beta=1. / 9.,
+            scale=model.GetLossScale(),
+        )
+        loss_gradients.update(
+            blob_utils.
+            get_loss_gradients(model, [loss_rpn_cls_fpn, loss_rpn_bbox_fpn])
+        )
+        model.AddLosses(['loss_deep_sup_rpn_cls_fpn' + slvl, 'loss_deep_sup_rpn_bbox_fpn' + slvl])
+    return loss_gradients
 
 # ---------------------------------------------------------------------------- #
 # Helper functions for working with multilevel FPN RoIs

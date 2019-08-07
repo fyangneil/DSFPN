@@ -501,7 +501,9 @@ __C.MODEL.DECOUPLE_CLS_REG=False
 __C.MODEL.FINE_FEATURE_ON=False
 __C.MODEL.PATCH_FEATURE_ON=False
 __C.MODEL.PATCH_FEATURE_81CLS_ON=False
-
+__C.MODEL.DEEP_SUP_ON=False
+__C.MODEL.SPECIFIC_CLS_HEAD_ON=False
+__C.MODEL.DEEP_SUP_RPN_ON=True
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
@@ -700,13 +702,22 @@ __C.FINE_CLS.NUM_CLASSES=-1
 # ---------------------------------------------------------------------------- #
 __C.ROI_81CLS = AttrDict()
 __C.ROI_81CLS.ROI_BOX_HEAD=b''
-
+# ---------------------------------------------------------------------------- #
+# roi specific cls options
+# ---------------------------------------------------------------------------- #
+__C.ROI_SPECIFIC_CLS = AttrDict()
+__C.ROI_SPECIFIC_CLS.ROI_BOX_HEAD=b''
 # ---------------------------------------------------------------------------- #
 # hard pos roi 81 cls options
 # ---------------------------------------------------------------------------- #
 __C.HARD_POS_ROI_81CLS = AttrDict()
 __C.HARD_POS_ROI_81CLS.ROI_BOX_HEAD=b''
 
+# ---------------------------------------------------------------------------- #
+# roi deep supervision options
+# ---------------------------------------------------------------------------- #
+__C.ROI_DEEP_SUP = AttrDict()
+__C.ROI_DEEP_SUP.ROI_BOX_HEAD=b''
 
 # ---------------------------------------------------------------------------- #
 # Cascade R-CNN options

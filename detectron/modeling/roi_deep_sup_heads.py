@@ -39,18 +39,18 @@ from detectron.utils.net import get_group_gn
 import detectron.utils.blob as blob_utils
 
 
-def add_roi_81_cls_inputs(model):
-    model.AddHardPosRoi81Cls()
+def add_roi_deep_sup_inputs(model):
+    model.AddRoiDeepSup()
 # ---------------------------------------------------------------------------- #
 # Fast R-CNN outputs and losses
 # ---------------------------------------------------------------------------- #
 
-def add_roi_81_cls_outputs(model, blob_in, dim):
+def add_roi_deep_sup_outputs(model, blob_in_cls,blob_in_reg, dim):
     """Add RoI classification and bounding box regression output ops."""
     # Box classification layer
     model.FC(
-        blob_in,
-        'hard_pos_roi_81_cls_score',
+        blob_in_cls,
+        'roi_deep_sup_score',
         dim,
         cfg.MODEL.NUM_CLASSES,
         weight_init=gauss_fill(0.01),
@@ -59,7 +59,7 @@ def add_roi_81_cls_outputs(model, blob_in, dim):
     if not model.train:  # == if test
         # Only add softmax when testing; during training the softmax is combined
         # with the label cross entropy loss for numerical stability
-        model.Softmax('hard_pos_roi_81_cls_score', 'hard_pos_roi_81_cls_prob', engine='CUDNN')
+        model.Softmax('roi_deep_sup_score', 'roi_deep_sup_prob', engine='CUDNN')
 
 
     if cfg.MODEL.CASCADE_ON:
@@ -69,24 +69,58 @@ def add_roi_81_cls_outputs(model, blob_in, dim):
         for idx in range(-2, 0):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
+    # Box regression layer
+    num_bbox_reg_classes = (
+        2 if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG else model.num_classes
+    )
+    model.FC(
+        blob_in_reg,
+        'roi_deep_sup_bbox_pred',
+        dim,
+        num_bbox_reg_classes * 4,
+        weight_init=gauss_fill(0.001),
+        bias_init=const_fill(0.0)
+    )
+
+    if cfg.MODEL.CASCADE_ON:
+        # add stage parameters to list
+        if '1' not in model.stage_params:
+                model.stage_params['1'] = []
+        for idx in range(-2, 0):
+            model.stage_params['1'].append(model.weights[idx])
+            model.stage_params['1'].append(model.biases[idx])
 
 
-def add_roi_81_cls_losses(model):
+def add_roi_deep_sup_losses(model):
     """Add losses for RoI classification and bounding box regression."""
     loss_scalar = 0.5
     if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_LOSS:
         loss_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
-    hard_pos_roi_81_cls_prob, loss_hard_pos_roi_81_cls = model.net.SoftmaxWithLoss(
-        ['hard_pos_roi_81_cls_score', 'labels_int32_hard_pos_roi_81_cls'],
-        ['hard_pos_roi_81_cls_prob', 'loss_hard_pos_roi_81_cls'],
+    roi_deep_sup_prob, loss_roi_deep_sup_cls = model.net.SoftmaxWithLoss(
+        ['roi_deep_sup_score', 'labels_int32_roi_deep_sup'],
+        ['roi_deep_sup_prob', 'loss_roi_deep_sup_cls'],
         scale=model.GetLossScale() * loss_scalar
     )
 
-    loss_gradients = blob_utils.get_loss_gradients(model, [loss_hard_pos_roi_81_cls])
-    model.Accuracy(['hard_pos_roi_81_cls_prob', 'labels_int32_hard_pos_roi_81_cls'],
-                   'accuracy_hard_pos_roi_81_cls')
-    model.AddLosses(['loss_hard_pos_roi_81_cls'])
-    model.AddMetrics('accuracy_hard_pos_roi_81_cls')
+    loss_roi_deep_sup_bbox = model.net.SmoothL1Loss(
+        [
+            'roi_deep_sup_bbox_pred', 'bbox_targets', 'bbox_inside_weights',
+            'bbox_outside_weights'
+        ],
+        'loss_deep_sup_bbox',
+        scale=model.GetLossScale() * loss_scalar
+    )
+    loss_gradients = blob_utils.get_loss_gradients(model, [loss_roi_deep_sup_cls, loss_roi_deep_sup_bbox])
+    model.Accuracy(['roi_deep_sup_prob', 'labels_int32_roi_deep_sup'],
+                   'accuracy_roi_deep_sup_cls')
+    model.AddLosses(['loss_roi_deep_sup_cls','loss_deep_sup_bbox'])
+    model.AddMetrics('accuracy_roi_deep_sup_cls')
+
+    bbox_reg_weights = cfg.MODEL.BBOX_REG_WEIGHTS
+    model.AddBBoxAccuracy(
+        ['roi_deep_sup_bbox_pred', 'roi_deep_sup', 'labels_int32_roi_deep_sup', 'mapped_gt_boxes'],
+        ['deep_sup_bbox_iou', 'deep_sup_bbox_iou_pre'], bbox_reg_weights)
+    model.AddMetrics(['deep_sup_bbox_iou', 'deep_sup_bbox_iou_pre'])
     return loss_gradients
 
 
@@ -99,8 +133,8 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     print('add_hard_pos_roi_2mlp_head')
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
-    blob_out='hard_pos_roi_81_cls_feat'
-    blob_rois_name='hard_pos_roi_81_cls'
+    blob_out='roi_deep_sup_feat'
+    blob_rois_name='roi_deep_sup'
     roi_feat = model.RoIFeatureTransform(
         blob_in,
         blob_out,
@@ -117,10 +151,15 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
         model.net.Scale(
             roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
         )
-    model.FC(roi_feat, 'fc6_hard_pos_roi_81_cls', dim_in * roi_size * roi_size, hidden_dim)
-    model.Relu('fc6_hard_pos_roi_81_cls', 'fc6_hard_pos_roi_81_cls')
-    model.FC('fc6_hard_pos_roi_81_cls', 'fc7_hard_pos_roi_81_cls', hidden_dim, hidden_dim)
-    model.Relu('fc7_hard_pos_roi_81_cls', 'fc7_hard_pos_roi_81_cls')
+    model.FC(roi_feat, 'fc6_roi_deep_sup_cls', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6_roi_deep_sup_cls', 'fc6_roi_deep_sup_cls')
+    model.FC('fc6_roi_deep_sup_cls', 'fc7_roi_deep_sup_cls', hidden_dim, hidden_dim)
+    model.Relu('fc7_roi_deep_sup_cls', 'fc7_roi_deep_sup_cls')
+
+    model.FC(roi_feat, 'fc6_roi_deep_sup_reg', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6_roi_deep_sup_reg', 'fc6_roi_deep_sup_reg')
+    model.FC('fc6_roi_deep_sup_reg', 'fc7_roi_deep_sup_reg', hidden_dim, hidden_dim)
+    model.Relu('fc7_roi_deep_sup_reg', 'fc7_roi_deep_sup_reg')
     if cfg.MODEL.CASCADE_ON:
         # add stage parameters to list
         if '1' not in model.stage_params:
@@ -128,7 +167,7 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
         for idx in range(-2, 0):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
-    return 'fc7_hard_pos_roi_81_cls', hidden_dim
+    return 'fc7_roi_deep_sup_cls','fc7_roi_deep_sup_reg', hidden_dim
 
 
 def add_roi_Xconv1fc_head(model, blob_in, dim_in, spatial_scale):

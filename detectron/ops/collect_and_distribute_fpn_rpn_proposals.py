@@ -117,7 +117,7 @@ def distribute(rois, label_blobs, outputs, train):
         outputs[5].reshape(roi_p5.shape)
         outputs[5].data[...] = roi_p5
 
-        patch_num=5
+        patch_num=4
     # Create new roi blobs for each FPN level
     # (See: modeling.FPN.add_multilevel_roi_blobs which is similar but annoying
     # to generalize to support this particular case.)

@@ -145,7 +145,7 @@ def _sample_rois(roidb, im_scale, batch_idx, stage):
 
     # The indices that we're selecting (both fg and bg)
     keep_inds = np.append(fg_inds, bg_inds)
-    print('cascade keep_inds',keep_inds.size)
+    # print('cascade keep_inds',keep_inds.size)
     # Label is the class each RoI has max overlap with
     sampled_labels = roidb["max_classes"][keep_inds]
     sampled_labels[fg_rois_per_this_image:] = 0  # Label bg RoIs with class 0
