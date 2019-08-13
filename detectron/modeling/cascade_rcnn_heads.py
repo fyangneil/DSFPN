@@ -96,6 +96,38 @@ def add_cascade_rcnn_outputs(model, blob_in, dim, stage):
         model.stage_params[str(stage)].append(model.biases[idx])
     return "cls_prob" + stage_name, "bbox_pred" + stage_name
 
+def add_cascade_rcnn_decouple_outputs(model, blob_in_cls,blob_in_reg, dim, stage):
+    """Add RoI classification and bounding box regression output ops."""
+    stage_name = "_{}".format(stage)
+    model.FC(
+        blob_in_cls,
+        "cls_score" + stage_name,
+        dim,
+        model.num_classes,
+        weight_init=gauss_fill(0.01),
+        bias_init=const_fill(0.0),
+    )
+    if not model.train:  # == if test
+        # Only add softmax when testing; during training the softmax is combined
+        # with the label cross entropy loss for numerical stability
+        model.Softmax("cls_score" + stage_name, "cls_prob" + stage_name, engine="CUDNN")
+
+    num_bbox_reg_classes = 2 if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG else model.num_classes
+    model.FC(
+        blob_in_reg,
+        "bbox_pred" + stage_name,
+        dim,
+        num_bbox_reg_classes * 4,
+        weight_init=gauss_fill(0.001),
+        bias_init=const_fill(0.0),
+    )
+    # add stage parameters to list
+    if str(stage) not in model.stage_params:
+        model.stage_params[str(stage)] = []
+    for idx in range(-2, 0):
+        model.stage_params[str(stage)].append(model.weights[idx])
+        model.stage_params[str(stage)].append(model.biases[idx])
+    return "cls_prob" + stage_name, "bbox_pred" + stage_name
 
 def add_cascade_rcnn_losses(model, stage):
     """Add losses for RoI classification and bounding box regression."""
@@ -180,7 +212,47 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale, stage):
         model.stage_params[str(stage)].append(model.weights[idx])
         model.stage_params[str(stage)].append(model.biases[idx])
     return "fc7" + stage_name, hidden_dim
+def add_roi_2mlp_decouple_head(model, blob_in, dim_in, spatial_scale, stage):
+    """Add a ReLU MLP with two hidden layers."""
+    stage_name = "_{}".format(stage)
+    hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
+    roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+    roi_feat = model.RoIFeatureTransform(
+        blob_in,
+        "roi" + stage_name + "_feat",
+        blob_rois="rois" + stage_name,
+        method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+        resolution=roi_size,
+        sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+        spatial_scale=spatial_scale,
+    )
 
+    if cfg.CASCADE_RCNN.SCALE_GRAD:
+        grad_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[stage - 1]
+        model.net.Scale(
+            roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
+        )
+
+    model.FC(
+        roi_feat, "fc6_cls" + stage_name, dim_in * roi_size * roi_size, hidden_dim
+    )
+    model.Relu("fc6_cls" + stage_name, "fc6_cls" + stage_name)
+    model.FC("fc6_cls" + stage_name, "fc7_cls" + stage_name, hidden_dim, hidden_dim)
+    model.Relu("fc7_cls" + stage_name, "fc7_cls" + stage_name)
+
+    model.FC(
+        roi_feat, "fc6_reg" + stage_name, dim_in * roi_size * roi_size, hidden_dim
+    )
+    model.Relu("fc6_reg" + stage_name, "fc6_reg" + stage_name)
+    model.FC("fc6_reg" + stage_name, "fc7_reg" + stage_name, hidden_dim, hidden_dim)
+    model.Relu("fc7_reg" + stage_name, "fc7_reg" + stage_name)
+    # add stage parameters to list
+    if str(stage) not in model.stage_params:
+        model.stage_params[str(stage)] = []
+    for idx in range(-2, 0):
+        model.stage_params[str(stage)].append(model.weights[idx])
+        model.stage_params[str(stage)].append(model.biases[idx])
+    return "fc7_cls" + stage_name,"fc7_reg" + stage_name, hidden_dim
 
 def add_roi_2mlp_head_shared(model, head_stage, roi_stage, dim_in=None):
     """Add a 2MLP head and output, sharing weights with another head."""

@@ -291,10 +291,16 @@ def build_generic_detection_model(
                 _check_for_cascade_rcnn()
                 for stage in range(2, num_stage + 1):
                     stage_name = '_{}'.format(stage)
-                    head_loss_gradients['box' + stage_name] = _add_cascade_rcnn_head(
-                        model, add_roi_cascade_head_func,
-                        blob_conv, dim_conv, spatial_scale_conv, stage
-                    )
+                    if cfg.MODEL.DECOUPLE_CLS_REG:
+                        head_loss_gradients['box' + stage_name] = _add_cascade_rcnn_decouple_head(
+                            model, add_roi_cascade_head_func,
+                            blob_conv, dim_conv, spatial_scale_conv, stage
+                        )
+                    else:
+                        head_loss_gradients['box' + stage_name] = _add_cascade_rcnn_head(
+                            model, add_roi_cascade_head_func,
+                            blob_conv, dim_conv, spatial_scale_conv, stage
+                        )
 
         if cfg.MODEL.MASK_ON:
             # Add the mask head
@@ -527,6 +533,31 @@ def _add_cascade_rcnn_head(
         cascade_rcnn_heads.add_ensemble_output(model, blobs_in, stage)
     return loss_gradients
 
+def _add_cascade_rcnn_decouple_head(
+    model, add_roi_cascade_head_func, blob_in, dim_in, spatial_scale_in, stage
+):
+    """Add Cascade R-CNN heads to the model, by Zhaowei Cai."""
+    assert stage >= 2
+    pre_stage = stage - 1
+    cascade_rcnn_heads.add_cascade_proposal_outputs(model, stage, pre_stage)
+    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_cascade_head_func(
+        model, blob_in, dim_in, spatial_scale_in, stage
+    )
+    blob_prob, _ = cascade_rcnn_heads.add_cascade_rcnn_decouple_outputs(
+        model, blob_frcn_cls,blob_frcn_reg, dim_frcn, stage)
+    if model.train:
+        loss_gradients = cascade_rcnn_heads.add_cascade_rcnn_losses(model, stage)
+    else:
+        loss_gradients = None
+    if not model.train and cfg.CASCADE_RCNN.TEST_ENSEMBLE:
+        # add additional heads (shared parameters with previous layers)
+        # for cascade ensemble at inference
+        blobs_in = [blob_prob]
+        add_head_shared_func = get_func(cfg.CASCADE_RCNN.ROI_BOX_HEAD + "_shared")
+        for copy_stage in range(1, stage):
+            blobs_in += [add_head_shared_func(model, copy_stage, stage, dim_in)]
+        cascade_rcnn_heads.add_ensemble_output(model, blobs_in, stage)
+    return loss_gradients
 
 def _add_roi_mask_head(
     model, add_roi_mask_head_func, blob_in, dim_in, spatial_scale_in
