@@ -254,6 +254,40 @@ def add_roi_2mlp_decouple_head(model, blob_in, dim_in, spatial_scale, stage):
         model.stage_params[str(stage)].append(model.biases[idx])
     return "fc7_cls" + stage_name,"fc7_reg" + stage_name, hidden_dim
 
+def add_roi_2mlp_decouple_head_shared(model, head_stage, roi_stage, dim_in=None):
+    """Add a 2MLP head and output, sharing weights with another head."""
+    add_stage_name = "_{}_{}".format(head_stage, roi_stage)
+    shared_stage_name = ""
+    if head_stage > 1:
+        shared_stage_name = "_{}".format(head_stage)
+    roi_feat = "roi_{}_feat".format(roi_stage)
+    model.FCShared(
+        roi_feat,
+        "fc6_cls" + add_stage_name,
+        weight="fc6_cls" + shared_stage_name + "_w",
+        bias="fc6_cls" + shared_stage_name + "_b",
+    )
+    model.Relu("fc6_cls" + add_stage_name, "fc6_cls" + add_stage_name)
+    model.FCShared(
+        "fc6_cls" + add_stage_name,
+        "fc7_cls" + add_stage_name,
+        weight="fc7_cls" + shared_stage_name + "_w",
+        bias="fc7_cls" + shared_stage_name + "_b",
+    )
+    model.Relu("fc7_cls" + add_stage_name, "fc7_cls" + add_stage_name)
+
+    model.FCShared(
+        "fc7_cls" + add_stage_name,
+        "cls_score" + add_stage_name,
+        weight="cls_score" + shared_stage_name + "_w",
+        bias="cls_score" + shared_stage_name + "_b",
+    )
+    model.Softmax(
+        "cls_score" + add_stage_name, "cls_prob" + add_stage_name, engine="CUDNN"
+    )
+    return "cls_prob" + add_stage_name
+
+
 def add_roi_2mlp_head_shared(model, head_stage, roi_stage, dim_in=None):
     """Add a 2MLP head and output, sharing weights with another head."""
     add_stage_name = "_{}_{}".format(head_stage, roi_stage)
