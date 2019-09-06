@@ -141,7 +141,7 @@ def _sample_rois(rois, label,pred_cls_score):
     max_cls_label = np.argmax(pred_cls_score, axis=1)
     max_cls_score = np.max(pred_cls_score, axis=1)
 
-    if 0:
+    if 1:
         # hard negatives
         gt_neg_ind=np.where(sampled_labels_binary==0)[0]
 
@@ -166,10 +166,10 @@ def _sample_rois(rois, label,pred_cls_score):
         pos_num=gt_pos_ind.size
 
 
-        neg_num=int(np.minimum(3*pos_num,gt_neg_ind.size))
+        neg_num=int(np.minimum(2*pos_num,gt_neg_ind.size))
         rois_per_image = int(cfg.TRAIN.BATCH_SIZE_PER_IM)
-        if neg_num<rois_per_image-pos_num:
-            neg_num=rois_per_image-pos_num
+        # if neg_num<rois_per_image-pos_num:
+        #     neg_num=rois_per_image-pos_num
 
         gt_neg_ind=gt_neg_ind[sort_ind[:neg_num]]
 
@@ -194,7 +194,7 @@ def _sample_rois(rois, label,pred_cls_score):
             sampled_rois=np.delete(sampled_rois,non_vehicle_ind,0)
             sampled_labels=np.delete(sampled_labels,non_vehicle_ind)
             # print('remove non-vehicle sampled_labels', sampled_labels.shape)
-    if 1:
+    if 0:
         # roi_ind = np.where(sampled_labels_binary >=0)[0]
         pred_vehicle_score=np.max(pred_cls_score[:,2:10],axis=1)
         sort_ind=np.argsort(pred_vehicle_score)

@@ -175,8 +175,8 @@ def _sample_rois(rois, label,pred_cls_score):
 
     neg_num=int(np.minimum(3*pos_num,gt_neg_ind.size))
     rois_per_image = int(cfg.TRAIN.BATCH_SIZE_PER_IM)
-    if neg_num<rois_per_image-pos_num:
-        neg_num=rois_per_image-pos_num
+    # if neg_num<rois_per_image-pos_num:
+    #     neg_num=rois_per_image-pos_num
 
     gt_neg_ind=gt_neg_ind[sort_ind[:neg_num]]
 

@@ -52,7 +52,7 @@ def add_roi_specific_cls_outputs(model, blob_in, dim):
         blob_in,
         'roi_specific_cls_score',
         dim,
-        81, #cfg.MODEL.NUM_CLASSES,
+        cfg.MODEL.NUM_CLASSES,
         weight_init=gauss_fill(0.01),
         bias_init=const_fill(0.0)
     )
