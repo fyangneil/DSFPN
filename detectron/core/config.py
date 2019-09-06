@@ -503,7 +503,7 @@ __C.MODEL.PATCH_FEATURE_ON=False
 __C.MODEL.PATCH_FEATURE_81CLS_ON=False
 __C.MODEL.DEEP_SUP_ON=False
 __C.MODEL.SPECIFIC_CLS_HEAD_ON=False
-__C.MODEL.DEEP_SUP_RPN_ON=True
+__C.MODEL.DEEP_SUP_RPN_ON=False
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
