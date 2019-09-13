@@ -504,6 +504,7 @@ __C.MODEL.PATCH_FEATURE_81CLS_ON=False
 __C.MODEL.DEEP_SUP_ON=False
 __C.MODEL.SPECIFIC_CLS_HEAD_ON=False
 __C.MODEL.DEEP_SUP_RPN_ON=False
+__C.MODEL.TD_BU_ON=False
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
@@ -718,6 +719,12 @@ __C.HARD_POS_ROI_81CLS.ROI_BOX_HEAD=b''
 # ---------------------------------------------------------------------------- #
 __C.ROI_DEEP_SUP = AttrDict()
 __C.ROI_DEEP_SUP.ROI_BOX_HEAD=b''
+
+# ---------------------------------------------------------------------------- #
+# roi top down bottom up (td bu) options
+# ---------------------------------------------------------------------------- #
+__C.ROI_TD_BU = AttrDict()
+__C.ROI_TD_BU.ROI_BOX_HEAD=b''
 
 # ---------------------------------------------------------------------------- #
 # Cascade R-CNN options

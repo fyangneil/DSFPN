@@ -177,6 +177,7 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     """Add a ReLU MLP with two hidden layers."""
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+
     roi_feat = model.RoIFeatureTransform(
         blob_in,
         'roi_feat',
@@ -186,6 +187,8 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
         sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
         spatial_scale=spatial_scale
     )
+
+
 
     # normalize the gradient by the number of cascade heads
     if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_GRAD:
@@ -207,6 +210,46 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
     return 'fc7', hidden_dim
+
+
+def add_roi_2mlp_td_bu_head(model, blob_in_td,blob_in_bu, dim_in, spatial_scale):
+    """Add a ReLU MLP with two hidden layers."""
+    hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
+    roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+
+
+
+    roi_feat=model.RoIFeatureTransform_td_bp(
+        blob_in_td,blob_in_bu,
+        'roi_feat',
+        blob_rois_td='rois',
+        method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+        resolution=roi_size,
+        sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+        spatial_scale=spatial_scale
+    )
+    # normalize the gradient by the number of cascade heads
+    if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_GRAD:
+        grad_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
+        model.net.Scale(
+            roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
+        )
+
+    model.FC(roi_feat, 'fc6', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6', 'fc6')
+    model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
+    model.Relu('fc7', 'fc7')
+
+    if cfg.MODEL.CASCADE_ON:
+        # add stage parameters to list
+        if '1' not in model.stage_params:
+            model.stage_params['1'] = []
+        for idx in range(-2, 0):
+            model.stage_params['1'].append(model.weights[idx])
+            model.stage_params['1'].append(model.biases[idx])
+    return 'fc7', hidden_dim
+
+
 
 def add_roi_2mlp_decouple_head(model, blob_in, dim_in, spatial_scale):
     """Add a ReLU MLP with two hidden layers."""

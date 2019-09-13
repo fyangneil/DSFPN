@@ -62,6 +62,8 @@ import detectron.utils.c2 as c2_utils
 import detectron.modeling.roi_81_cls_heads as roi_81_cls_heads
 import detectron.modeling.roi_specific_cls_heads as roi_specific_cls_heads
 import detectron.modeling.roi_deep_sup_heads as roi_deep_sup_heads
+import detectron.modeling.roi_td_bu_heads as roi_td_bu_heads
+
 logger = logging.getLogger(__name__)
 
 
@@ -98,6 +100,7 @@ def generalized_rcnn(model):
         add_all_roi_box_head_func=get_func(cfg.FAST_RCNN.ALL_ROI_BOX_HEAD),
         add_roi_deep_sup_head_func=get_func(cfg.ROI_DEEP_SUP.ROI_BOX_HEAD),
         add_roi_specific_cls_head_func=get_func(cfg.ROI_SPECIFIC_CLS.ROI_BOX_HEAD),
+        add_roi_td_bu_head_func=get_func(cfg.ROI_TD_BU.ROI_BOX_HEAD),
     )
 
 
@@ -192,6 +195,7 @@ def build_generic_detection_model(
     add_all_roi_box_head_func=None,
     add_roi_deep_sup_head_func=None,
     add_roi_specific_cls_head_func=None,
+    add_roi_td_bu_head_func=None
 ):
     def _single_gpu_build_func(model):
         """Build the model on a single GPU. Can be called in a loop over GPUs
@@ -241,7 +245,6 @@ def build_generic_detection_model(
                 blob_conv, spatial_scale_conv
             )
 
-
         if not cfg.MODEL.RPN_ONLY:
             # Add the Fast R-CNN head
             if cfg.MODEL.ROI_HARD_NEG_ON and cfg.MODEL.ALL_ROI_ON and model.train:
@@ -263,15 +266,29 @@ def build_generic_detection_model(
                     spatial_scale_conv
                 )
                 else:
+
                     head_loss_gradients['box'] = _add_fast_rcnn_head(
                         model, add_roi_box_head_func, blob_conv, dim_conv,
                         spatial_scale_conv
                     )
+                    if cfg.MODEL.TD_BU_ON:
+                        head_loss_gradients['box_td_bu'] = _add_roi_td_bu_head(
+                            model, add_roi_td_bu_head_func, blob_conv,blob_inner_lateral_conv, dim_conv,
+                            spatial_scale_conv
+                        )
+
             if cfg.MODEL.DEEP_SUP_ON:
-                head_loss_gradients['roi_deep_sup'] = _add_roi_deep_sup_head(
-                    model, add_roi_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
-                    spatial_scale_conv
-                )
+                if cfg.MODEL.DECOUPLE_CLS_REG:
+                    head_loss_gradients['roi_deep_sup'] = _add_roi_deep_sup_decouple_head(
+                        model, add_roi_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
+                        spatial_scale_conv
+                    )
+
+                else:
+                    head_loss_gradients['roi_deep_sup'] = _add_roi_deep_sup_head(
+                        model, add_roi_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
+                        spatial_scale_conv
+                    )
 
             if cfg.MODEL.ROI_81CLS_ON:
 
@@ -363,6 +380,8 @@ def _add_fast_rcnn_head(
     else:
         loss_gradients = None
     return loss_gradients
+
+
 
 def _add_fast_rcnn_decouple_head(
     model, add_roi_box_decouple_head_func, blob_in, dim_in, spatial_scale_in
@@ -481,16 +500,44 @@ def _add_roi_deep_sup_head(
 ):
     """Add a super cls head to the model."""
     roi_deep_sup_heads.add_roi_deep_sup_inputs(model)
-    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_deep_sup_head_func(
+    blob_frcn_cls, dim_frcn = add_roi_deep_sup_head_func(
         model, blob_in, dim_in, spatial_scale_in
     )
-    roi_deep_sup_heads.add_roi_deep_sup_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn)
+    roi_deep_sup_heads.add_roi_deep_sup_outputs(model, blob_frcn_cls, dim_frcn)
     if model.train:
         loss_gradients = roi_deep_sup_heads.add_roi_deep_sup_losses(model)
     else:
         loss_gradients = None
     return loss_gradients
 
+def _add_roi_deep_sup_decouple_head(
+    model, add_roi_deep_sup_head_func, blob_in, dim_in, spatial_scale_in
+):
+    """Add a super cls head to the model."""
+    roi_deep_sup_heads.add_roi_deep_sup_inputs(model)
+    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_deep_sup_head_func(
+        model, blob_in, dim_in, spatial_scale_in
+    )
+    roi_deep_sup_heads.add_roi_deep_sup_decouple_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn)
+    if model.train:
+        loss_gradients = roi_deep_sup_heads.add_roi_deep_sup_losses(model)
+    else:
+        loss_gradients = None
+    return loss_gradients
+def _add_roi_td_bu_head(
+    model, add_roi_td_bu_head_func, blob_in_td,blob_in_bu, dim_in, spatial_scale_in
+):
+    """Add a super cls head to the model."""
+    roi_td_bu_heads.add_roi_td_bu_inputs(model)
+    blob_frcn_cls, dim_frcn = add_roi_td_bu_head_func(
+        model, blob_in_td,blob_in_bu, dim_in, spatial_scale_in
+    )
+    roi_td_bu_heads.add_roi_td_bu_outputs(model, blob_frcn_cls, dim_frcn)
+    if model.train:
+        loss_gradients = roi_td_bu_heads.add_roi_td_bu_losses(model)
+    else:
+        loss_gradients = None
+    return loss_gradients
 def _check_for_cascade_rcnn():
     assert cfg.MODEL.CLS_AGNOSTIC_BBOX_REG
     num_stage = cfg.CASCADE_RCNN.NUM_STAGE

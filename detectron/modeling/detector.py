@@ -39,6 +39,7 @@ from detectron.ops.decode_bboxes import DecodeBBoxesOp
 from detectron.ops.bbox_accuracy import BBoxAccuracyOp
 
 from detectron.ops.add_roi_deep_sup import AddRoiDeepSupOp
+from detectron.ops.add_roi_td_bu import AddRoiTdBuOp
 from detectron.ops.add_roi_81_cls import AddRoi81ClsOp
 from detectron.ops.add_roi_specific_cls import AddRoiSpecificClsOp
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
@@ -46,6 +47,7 @@ import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 import detectron.roi_data.roi_81_cls as roi_81_cls_roi_data
 import detectron.roi_data.roi_specific_cls as roi_specific_cls_roi_data
 import detectron.roi_data.roi_deep_sup as roi_deep_sup_data
+import detectron.roi_data.roi_td_bu as roi_td_bu_data
 import detectron.roi_data.cascade_rcnn as cascade_rcnn_roi_data
 import detectron.utils.c2 as c2_utils
 
@@ -315,8 +317,28 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         )(blobs_in, blobs_out, name=name)
 
         return outputs
+    def AddRoiTdBu(self):
+        blobs_in = ['rois']
+        if self.train:
+            blobs_in += ['labels_int32']
 
 
+            # blobs_in+=[str(category)]
+        blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
+        name = 'AddRoiTdBuOp:' + ','.join(
+            [str(b) for b in blobs_in]
+        )
+
+        # Prepare output blobs
+        blobs_out = roi_td_bu_data.get_roi_td_bu_blob_names(is_training=self.train
+        )
+        blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
+
+        outputs = self.net.Python(
+            AddRoiTdBuOp(self.train).forward
+        )(blobs_in, blobs_out, name=name)
+
+        return outputs
 
     def DecodeBBoxes(self, blobs_in, blobs_out, bbox_reg_weights):
         """Op for decoding bboxes. Only support class-agnostic bbox regression.
@@ -462,6 +484,95 @@ class DetectionModelHelper(cnn.CNNModelHelper):
             )
         # Only return the first blob (the transformed features)
         return xform_out[0] if isinstance(xform_out, tuple) else xform_out
+
+    def RoIFeatureTransform_td_bp(
+            self,
+            blobs_in_td,blobs_in_bu,
+            blob_out,
+            blob_rois_td='rois',
+            method='RoIPoolF',
+            resolution=7,
+            spatial_scale=1. / 16.,
+            sampling_ratio=0
+    ):
+        """Add the specified RoI pooling method. The sampling_ratio argument
+        is supported for some, but not all, RoI transform methods.
+
+        RoIFeatureTransform abstracts away:
+          - Use of FPN or not
+          - Specifics of the transform method
+        """
+        # pydevd.settrace(suspend=False, trace_only_current_thread=True)
+
+        assert method in {'RoIPoolF', 'RoIAlign'}, \
+            'Unknown pooling method: {}'.format(method)
+        has_argmax = (method == 'RoIPoolF')
+        if isinstance(blobs_in_td, list):
+            # FPN case: add RoIFeatureTransform to each FPN level
+            k_max = cfg.FPN.ROI_MAX_LEVEL  # coarsest level of pyramid
+            k_min = cfg.FPN.ROI_MIN_LEVEL  # finest level of pyramid
+            assert len(blobs_in_td) == k_max - k_min + 1
+            bl_out_list = []
+            blob_rois_bu=blob_rois_td
+            for lvl in range(k_min, k_max + 1):
+                bl_in_td = blobs_in_td[k_max - lvl]  # blobs_in is in reversed order
+                bl_in_bu = blobs_in_bu[k_max - lvl]
+
+                sc = spatial_scale[k_max - lvl]  # in reversed order
+                bl_rois_td = blob_rois_td + '_fpn' + str(lvl)
+                bl_out_td = blob_out + '_td_fpn' + str(lvl)
+
+                bl_rois_bu = blob_rois_bu + '_fpn' + str(lvl)
+                bl_out_bu = blob_out + '_bu_fpn' + str(lvl)
+
+                bl_out = blob_out + '_fpn' + str(lvl)
+                bl_out_list.append(bl_out)
+
+
+                bl_argmax = ['_argmax_' + bl_out_td] if has_argmax else []
+                self.net.__getattr__(method)(
+                    [bl_in_td, bl_rois_td], [bl_out_td] + bl_argmax,
+                    pooled_w=resolution,
+                    pooled_h=resolution,
+                    spatial_scale=sc,
+                    sampling_ratio=sampling_ratio
+                )
+
+                bl_argmax = ['_argmax_' + bl_out_bu] if has_argmax else []
+                self.net.__getattr__(method)(
+                    [bl_in_bu, bl_rois_bu], [bl_out_bu] + bl_argmax,
+                    pooled_w=resolution,
+                    pooled_h=resolution,
+                    spatial_scale=sc,
+                    sampling_ratio=sampling_ratio
+                )
+                self.Sum([bl_out_bu,bl_out_td],bl_out)
+
+            # The pooled features from all levels are concatenated along the
+            # batch dimension into a single 4D tensor.
+            xform_shuffled, _ = self.net.Concat(
+                bl_out_list, [blob_out + '_shuffled', '_concat_' + blob_out],
+                axis=0
+            )
+            # Unshuffle to match rois from dataloader
+            restore_bl = blob_rois_td + '_idx_restore_int32'
+            xform_out = self.net.BatchPermutation(
+                [xform_shuffled, restore_bl], blob_out
+            )
+        else:
+            # Single feature level
+            bl_argmax = ['_argmax_' + blob_out] if has_argmax else []
+            # sampling_ratio is ignored for RoIPoolF
+            xform_out = self.net.__getattr__(method)(
+                [blobs_in, blob_rois], [blob_out] + bl_argmax,
+                pooled_w=resolution,
+                pooled_h=resolution,
+                spatial_scale=spatial_scale,
+                sampling_ratio=sampling_ratio
+            )
+        # Only return the first blob (the transformed features)
+        return xform_out[0] if isinstance(xform_out, tuple) else xform_out
+
     def RoIFeatureTransform_add_patch(
         self,
         blobs_in,
