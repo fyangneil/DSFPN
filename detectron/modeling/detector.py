@@ -39,6 +39,7 @@ from detectron.ops.decode_bboxes import DecodeBBoxesOp
 from detectron.ops.bbox_accuracy import BBoxAccuracyOp
 
 from detectron.ops.add_roi_deep_sup import AddRoiDeepSupOp
+from detectron.ops.add_roi_cascade_deep_sup import AddRoiCascadeDeepSupOp
 from detectron.ops.add_roi_td_bu import AddRoiTdBuOp
 from detectron.ops.add_roi_81_cls import AddRoi81ClsOp
 from detectron.ops.add_roi_specific_cls import AddRoiSpecificClsOp
@@ -47,6 +48,7 @@ import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 import detectron.roi_data.roi_81_cls as roi_81_cls_roi_data
 import detectron.roi_data.roi_specific_cls as roi_specific_cls_roi_data
 import detectron.roi_data.roi_deep_sup as roi_deep_sup_data
+import detectron.roi_data.roi_cascade_deep_sup as roi_cascade_deep_sup_data
 import detectron.roi_data.roi_td_bu as roi_td_bu_data
 import detectron.roi_data.cascade_rcnn as cascade_rcnn_roi_data
 import detectron.utils.c2 as c2_utils
@@ -314,6 +316,30 @@ class DetectionModelHelper(cnn.CNNModelHelper):
 
         outputs = self.net.Python(
             AddRoiDeepSupOp(self.train).forward
+        )(blobs_in, blobs_out, name=name)
+
+        return outputs
+    def AddRoiCascadeDeepSup(self,stage):
+        stage_name = '_{}'.format(stage)
+
+        blobs_in = ['rois'+stage_name]
+        if self.train:
+            blobs_in += ['labels_int32'+stage_name]
+
+
+            # blobs_in+=[str(category)]
+        blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
+        name = 'AddRoiCascadeDeepSupOp:' + ','.join(
+            [str(b) for b in blobs_in]
+        )
+
+        # Prepare output blobs
+        blobs_out = roi_cascade_deep_sup_data.get_roi_cascade_deep_sup_blob_names(stage,is_training=self.train
+        )
+        blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
+
+        outputs = self.net.Python(
+            AddRoiCascadeDeepSupOp(self.train,stage).forward
         )(blobs_in, blobs_out, name=name)
 
         return outputs

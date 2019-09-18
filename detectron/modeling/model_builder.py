@@ -62,6 +62,7 @@ import detectron.utils.c2 as c2_utils
 import detectron.modeling.roi_81_cls_heads as roi_81_cls_heads
 import detectron.modeling.roi_specific_cls_heads as roi_specific_cls_heads
 import detectron.modeling.roi_deep_sup_heads as roi_deep_sup_heads
+import detectron.modeling.roi_cascade_deep_sup_heads as roi_cascade_deep_sup_heads
 import detectron.modeling.roi_td_bu_heads as roi_td_bu_heads
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ def generalized_rcnn(model):
         add_roi_deep_sup_head_func=get_func(cfg.ROI_DEEP_SUP.ROI_BOX_HEAD),
         add_roi_specific_cls_head_func=get_func(cfg.ROI_SPECIFIC_CLS.ROI_BOX_HEAD),
         add_roi_td_bu_head_func=get_func(cfg.ROI_TD_BU.ROI_BOX_HEAD),
+        add_roi_cascade_deep_sup_head_func=get_func(cfg.ROI_CASCADE_DEEP_SUP.ROI_BOX_HEAD)
     )
 
 
@@ -195,7 +197,8 @@ def build_generic_detection_model(
     add_all_roi_box_head_func=None,
     add_roi_deep_sup_head_func=None,
     add_roi_specific_cls_head_func=None,
-    add_roi_td_bu_head_func=None
+    add_roi_td_bu_head_func=None,
+    add_roi_cascade_deep_sup_head_func=None
 ):
     def _single_gpu_build_func(model):
         """Build the model on a single GPU. Can be called in a loop over GPUs
@@ -313,11 +316,21 @@ def build_generic_detection_model(
                             model, add_roi_cascade_head_func,
                             blob_conv, dim_conv, spatial_scale_conv, stage
                         )
+                        if cfg.MODEL.CASCADE_DEEP_SUP_ON:
+                            head_loss_gradients['roi'+stage_name+'_deep_sup'] = _add_roi_cascade_deep_sup_decouple_head(
+                                model, add_roi_cascade_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
+                                spatial_scale_conv,stage
+                            )
                     else:
                         head_loss_gradients['box' + stage_name] = _add_cascade_rcnn_head(
                             model, add_roi_cascade_head_func,
                             blob_conv, dim_conv, spatial_scale_conv, stage
                         )
+                        if cfg.MODEL.CASCADE_DEEP_SUP_ON:
+                            head_loss_gradients['roi'+stage_name+'_deep_sup'] = _add_roi_cascade_deep_sup_head(
+                                model, add_roi_cascade_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
+                                spatial_scale_conv,stage
+                            )
 
         if cfg.MODEL.MASK_ON:
             # Add the mask head
@@ -579,6 +592,21 @@ def _add_cascade_rcnn_head(
             blobs_in += [add_head_shared_func(model, copy_stage, stage, dim_in)]
         cascade_rcnn_heads.add_ensemble_output(model, blobs_in, stage)
     return loss_gradients
+def _add_roi_cascade_deep_sup_head(
+    model, add_roi_cascade_deep_sup_head_func, blob_in, dim_in, spatial_scale_in,stage
+):
+    """Add a super cls head to the model."""
+    assert stage >= 2
+    roi_cascade_deep_sup_heads.add_roi_cascade_deep_sup_inputs(model,stage)
+    blob_frcn_cls, dim_frcn = add_roi_cascade_deep_sup_head_func(
+        model, blob_in, dim_in, spatial_scale_in,stage
+    )
+    roi_cascade_deep_sup_heads.add_roi_cascade_deep_sup_outputs(model, blob_frcn_cls, dim_frcn,stage)
+    if model.train:
+        loss_gradients = roi_cascade_deep_sup_heads.add_roi_cascade_deep_sup_losses(model,stage)
+    else:
+        loss_gradients = None
+    return loss_gradients
 
 def _add_cascade_rcnn_decouple_head(
     model, add_roi_cascade_head_func, blob_in, dim_in, spatial_scale_in, stage
@@ -605,7 +633,21 @@ def _add_cascade_rcnn_decouple_head(
             blobs_in += [add_head_shared_func(model, copy_stage, stage, dim_in)]
         cascade_rcnn_heads.add_ensemble_output(model, blobs_in, stage)
     return loss_gradients
-
+def _add_roi_cascade_deep_sup_decouple_head(
+    model, add_roi_cascade_deep_sup_head_func, blob_in, dim_in, spatial_scale_in,stage
+):
+    """Add a super cls head to the model."""
+    assert stage >= 2
+    roi_cascade_deep_sup_heads.add_roi_cascade_deep_sup_inputs(model,stage)
+    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_cascade_deep_sup_head_func(
+        model, blob_in, dim_in, spatial_scale_in,stage
+    )
+    roi_cascade_deep_sup_heads.add_roi_cascade_deep_sup_decouple_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn,stage)
+    if model.train:
+        loss_gradients = roi_cascade_deep_sup_heads.add_roi_deep_sup_losses(model,stage)
+    else:
+        loss_gradients = None
+    return loss_gradients
 def _add_roi_mask_head(
     model, add_roi_mask_head_func, blob_in, dim_in, spatial_scale_in
 ):

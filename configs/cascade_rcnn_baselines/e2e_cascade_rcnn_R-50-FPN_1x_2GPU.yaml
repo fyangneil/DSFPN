@@ -4,7 +4,7 @@ MODEL:
   NUM_CLASSES: 81
   RPN_ONLY: False
   FASTER_RCNN: True
-  CASCADE_ON: False
+  CASCADE_ON: True
   CLS_AGNOSTIC_BBOX_REG: True  # default: False
   ROI_2CLS_ON: False
   ROI_81CLS_ON: False
@@ -13,13 +13,14 @@ MODEL:
   ROI_HARD_POS_ON: False
   ALL_ROI_ON: False
   DECOUPLE_CLS_REG: False
-  FINE_FEATURE_ON: True
+  FINE_FEATURE_ON: False
   PATCH_FEATURE_ON: False
   PATCH_FEATURE_81CLS_ON: False
-  DEEP_SUP_ON: True
+  DEEP_SUP_ON: False
   DEEP_SUP_RPN_ON: False
   SPECIFIC_CLS_HEAD_ON: False
-  TD_BU_ON: True
+  TD_BU_ON: False
+  CASCADE_DEEP_SUP_ON: False
 NUM_GPUS: 1
 SOLVER:
   WEIGHT_DECAY: 0.0001
@@ -48,10 +49,12 @@ ROI_TD_BU:
   ROI_BOX_HEAD: roi_td_bu_heads.add_roi_2mlp_head #add_roi_2mlp_head_lateral_fpn #add_roi_2mlp_head
 #  SPECIFIC_CLS: 2
 CASCADE_RCNN:
-  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head
+  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   NUM_STAGE: 3
   TEST_STAGE: 3
   TEST_ENSEMBLE: False
+ROI_CASCADE_DEEP_SUP:
+  ROI_BOX_HEAD: roi_cascade_deep_sup_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
 TRAIN:
   WEIGHTS: ./pretrained_model/R-50.pkl #./tmp/25/train/coco_2014_train/generalized_rcnn/model_iter59999.pkl #./pretrained_model/R-50.pkl #  #./tmp/17/train/coco_2014_train/generalized_rcnn/model_iter59999.pkl #/media/fanyang/C/code/detector/Detectron-Cascade-RCNN/tmp/10/train/coco_2014_train/generalized_rcnn/model_iter3999.pkl
   DATASETS: ('coco_2014_train', )
