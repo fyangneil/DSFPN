@@ -4,7 +4,7 @@ MODEL:
   NUM_CLASSES: 81
   RPN_ONLY: False
   FASTER_RCNN: True
-  CASCADE_ON: True
+  CASCADE_ON: False
   CLS_AGNOSTIC_BBOX_REG: True  # default: False
   ROI_2CLS_ON: False
   ROI_81CLS_ON: False
@@ -12,14 +12,14 @@ MODEL:
   ROI_HARD_NEG_ON: False
   ROI_HARD_POS_ON: False
   ALL_ROI_ON: False
-  DECOUPLE_CLS_REG: False
-  FINE_FEATURE_ON: False
+  DECOUPLE_CLS_REG: True
+  FINE_FEATURE_ON: True
   PATCH_FEATURE_ON: False
   PATCH_FEATURE_81CLS_ON: False
-  DEEP_SUP_ON: False
+  DEEP_SUP_ON: True
   DEEP_SUP_RPN_ON: False
   SPECIFIC_CLS_HEAD_ON: False
-  TD_BU_ON: False
+  TD_BU_ON: True
   CASCADE_DEEP_SUP_ON: False
 NUM_GPUS: 1
 SOLVER:
@@ -34,7 +34,7 @@ FPN:
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
 FAST_RCNN:
-  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
+  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   ALL_ROI_BOX_HEAD: fast_rcnn_heads.add_all_roi_2mlp_decouple_head #add_all_roi_2mlp_head
   ROI_XFORM_METHOD: RoIAlign
   ROI_XFORM_RESOLUTION: 7
@@ -42,11 +42,11 @@ FAST_RCNN:
 ROI_81CLS:
   ROI_BOX_HEAD: roi_81_cls_heads.add_roi_2mlp_head #add_roi_2mlp_head_lateral_fpn #add_roi_2mlp_head
 ROI_DEEP_SUP:
-  ROI_BOX_HEAD: roi_deep_sup_heads.add_roi_2mlp_head
+  ROI_BOX_HEAD: roi_deep_sup_heads.add_roi_2mlp_decouple_head
 ROI_SPECIFIC_CLS:
   ROI_BOX_HEAD: roi_specific_cls_heads.add_roi_2mlp_head
 ROI_TD_BU:
-  ROI_BOX_HEAD: roi_td_bu_heads.add_roi_2mlp_head #add_roi_2mlp_head_lateral_fpn #add_roi_2mlp_head
+  ROI_BOX_HEAD: roi_td_bu_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head_lateral_fpn #add_roi_2mlp_head
 #  SPECIFIC_CLS: 2
 CASCADE_RCNN:
   ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head

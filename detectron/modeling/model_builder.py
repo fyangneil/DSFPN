@@ -267,7 +267,12 @@ def build_generic_detection_model(
                     head_loss_gradients['box'] = _add_fast_rcnn_decouple_head(
                     model, add_roi_box_head_func, blob_conv, dim_conv,
                     spatial_scale_conv
-                )
+                    )
+                    if cfg.MODEL.TD_BU_ON:
+                        head_loss_gradients['box_td_bu'] = _add_roi_td_bu_decouple_head(
+                            model, add_roi_td_bu_head_func, blob_conv,blob_inner_lateral_conv, dim_conv,
+                            spatial_scale_conv
+                        )
                 else:
 
                     head_loss_gradients['box'] = _add_fast_rcnn_head(
@@ -546,6 +551,20 @@ def _add_roi_td_bu_head(
         model, blob_in_td,blob_in_bu, dim_in, spatial_scale_in
     )
     roi_td_bu_heads.add_roi_td_bu_outputs(model, blob_frcn_cls, dim_frcn)
+    if model.train:
+        loss_gradients = roi_td_bu_heads.add_roi_td_bu_losses(model)
+    else:
+        loss_gradients = None
+    return loss_gradients
+def _add_roi_td_bu_decouple_head(
+    model, add_roi_td_bu_head_func, blob_in_td,blob_in_bu, dim_in, spatial_scale_in
+):
+    """Add a super cls head to the model."""
+    roi_td_bu_heads.add_roi_td_bu_inputs(model)
+    blob_frcn_cls,blob_frcn_reg, dim_frcn = add_roi_td_bu_head_func(
+        model, blob_in_td,blob_in_bu, dim_in, spatial_scale_in
+    )
+    roi_td_bu_heads.add_roi_td_bu_decouple_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn)
     if model.train:
         loss_gradients = roi_td_bu_heads.add_roi_td_bu_losses(model)
     else:

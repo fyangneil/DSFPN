@@ -203,7 +203,7 @@ def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
 
 def add_roi_2mlp_decouple_head(model, blob_in, dim_in, spatial_scale):
     """Add a ReLU MLP with two hidden layers."""
-    print('add_hard_pos_roi_2mlp_head')
+    print('add_deep_sup_roi_2mlp_head')
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
     blob_out='roi_deep_sup_feat'

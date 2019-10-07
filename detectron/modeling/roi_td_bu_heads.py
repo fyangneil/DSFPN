@@ -181,7 +181,7 @@ def add_roi_2mlp_decouple_head(model, blob_in_td,blob_in_bu, dim_in, spatial_sca
     blob_rois_name='roi_td_bu'
 
 
-    roi_feat = model.RoIFeatureTransform_td_bp(
+    roi_feat_bu_td, roi_feat_td= model.RoIFeatureTransform_td_bp(
         blob_in_td, blob_in_bu,
         blob_out,
         blob_rois_td=blob_rois_name,
@@ -195,14 +195,29 @@ def add_roi_2mlp_decouple_head(model, blob_in_td,blob_in_bu, dim_in, spatial_sca
     if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_GRAD:
         grad_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
         model.net.Scale(
-            roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
+            roi_feat_td, roi_feat_td, scale=1.0, scale_grad=grad_scalar
         )
-    model.FC(roi_feat, 'fc6_roi_td_bu_cls', dim_in * roi_size * roi_size, hidden_dim)
-    model.Relu('fc6_roi_td_bu_cls', 'fc6_roi_td_bu_cls')
-    model.FC('fc6_roi_td_bu_cls', 'fc7_roi_td_bu_cls', hidden_dim, hidden_dim)
-    model.Relu('fc7_roi_td_bu_cls', 'fc7_roi_td_bu_cls')
+    #roi_feat_conv_cls =
+        #model.Conv(
+        #roi_feat_td, 'roi_feat_conv_cls', dim_in * 2, dim_in, 1,
+        #stride=1, pad=0,
+        #weight_init=('MSRAFill', {}),
+        #bias_init=('ConstantFill', {'value': 0.}),
+        #no_bias=0)
 
-    model.FC(roi_feat, 'fc6_roi_td_bu_reg', dim_in * roi_size * roi_size, hidden_dim)
+    roi_feat_conv_reg = model.Conv(
+        roi_feat_bu_td, 'roi_feat_conv_reg', dim_in * 2, dim_in, 1,
+        stride=1, pad=0,
+        weight_init=('MSRAFill', {}),
+        bias_init=('ConstantFill', {'value': 0.}),
+        no_bias=0)
+
+    model.FC(roi_feat_td, 'fc6_roi_td_cls', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6_roi_td_cls', 'fc6_roi_td_cls')
+    model.FC('fc6_roi_td_cls', 'fc7_roi_td_cls', hidden_dim, hidden_dim)
+    model.Relu('fc7_roi_td_cls', 'fc7_roi_td_cls')
+
+    model.FC(roi_feat_conv_reg, 'fc6_roi_td_bu_reg', dim_in * roi_size * roi_size, hidden_dim)
     model.Relu('fc6_roi_td_bu_reg', 'fc6_roi_td_bu_reg')
     model.FC('fc6_roi_td_bu_reg', 'fc7_roi_td_bu_reg', hidden_dim, hidden_dim)
     model.Relu('fc7_roi_td_bu_reg', 'fc7_roi_td_bu_reg')
@@ -213,7 +228,7 @@ def add_roi_2mlp_decouple_head(model, blob_in_td,blob_in_bu, dim_in, spatial_sca
         for idx in range(-2, 0):
             model.stage_params['1'].append(model.weights[idx])
             model.stage_params['1'].append(model.biases[idx])
-    return 'fc7_roi_td_bu_cls','fc7_roi_td_bu_reg', hidden_dim
+    return 'fc7_roi_td_cls','fc7_roi_td_bu_reg', hidden_dim
 
 
 def add_roi_2mlp_head(model, blob_in_td, blob_in_bu, dim_in, spatial_scale):
@@ -240,7 +255,15 @@ def add_roi_2mlp_head(model, blob_in_td, blob_in_bu, dim_in, spatial_scale):
         model.net.Scale(
             roi_feat, roi_feat, scale=1.0, scale_grad=grad_scalar
         )
-    model.FC(roi_feat, 'fc6_roi_td_bu', dim_in * roi_size * roi_size, hidden_dim)
+
+    roi_feat_conv=model.Conv(
+        roi_feat, 'roi_feat_conv', dim_in*2, dim_in, 1,
+        stride=1, pad=0,
+        weight_init=('MSRAFill', {}),
+        bias_init=('ConstantFill', {'value': 0.}),
+        no_bias=0)
+
+    model.FC(roi_feat_conv, 'fc6_roi_td_bu', dim_in * roi_size * roi_size, hidden_dim)
     model.Relu('fc6_roi_td_bu', 'fc6_roi_td_bu')
     model.FC('fc6_roi_td_bu', 'fc7_roi_td_bu', hidden_dim, hidden_dim)
     model.Relu('fc7_roi_td_bu', 'fc7_roi_td_bu')
