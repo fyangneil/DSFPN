@@ -663,7 +663,7 @@ def _add_roi_cascade_deep_sup_decouple_head(
     )
     roi_cascade_deep_sup_heads.add_roi_cascade_deep_sup_decouple_outputs(model, blob_frcn_cls,blob_frcn_reg, dim_frcn,stage)
     if model.train:
-        loss_gradients = roi_cascade_deep_sup_heads.add_roi_deep_sup_losses(model,stage)
+        loss_gradients = roi_cascade_deep_sup_heads.add_roi_cascade_deep_sup_losses(model,stage)
     else:
         loss_gradients = None
     return loss_gradients
