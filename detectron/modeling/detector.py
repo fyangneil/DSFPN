@@ -536,9 +536,13 @@ class DetectionModelHelper(cnn.CNNModelHelper):
             blob_rois_bu=blob_rois_td
             for lvl in range(k_min, k_max + 1):
                 bl_in_td = blobs_in_td[k_max - lvl]  # blobs_in is in reversed order
-                bl_in_bu = blobs_in_bu[k_max - lvl]
 
-                sc = spatial_scale[k_max - lvl]  # in reversed order
+                bl_in_bu = blobs_in_bu[k_max-k_min]
+
+                sc_td = spatial_scale[k_max - lvl]  # in reversed order
+                sc_bu=spatial_scale[k_max-k_min]
+
+
                 bl_rois_td = blob_rois_td + '_fpn' + str(lvl)
                 bl_out_td = blob_out + '_td_fpn' + str(lvl)
                 bl_out_td_list.append(bl_out_td)
@@ -556,7 +560,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     [bl_in_td, bl_rois_td], [bl_out_td] + bl_argmax,
                     pooled_w=resolution,
                     pooled_h=resolution,
-                    spatial_scale=sc,
+                    spatial_scale=sc_td,
                     sampling_ratio=sampling_ratio
                 )
 
@@ -565,7 +569,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     [bl_in_bu, bl_rois_bu], [bl_out_bu] + bl_argmax,
                     pooled_w=resolution,
                     pooled_h=resolution,
-                    spatial_scale=sc,
+                    spatial_scale=sc_bu,
                     sampling_ratio=sampling_ratio
                 )
                 self.net.Concat([bl_out_bu,bl_out_td],[bl_out,'_concat_' + bl_out],axis=1)

@@ -163,9 +163,9 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
     # Names for output blobs
     rois_name = 'rois'
     # rois_name='rois_fine_cls'
-    cls_prob_name = 'roi_td_bu_prob' #'cls_prob'
+    cls_prob_name = 'cls_prob' #'roi_td_bu_prob' #'cls_prob'
 
-    bbox_pred_name = 'roi_td_bu_bbox_pred' #'roi_td_bu_bbox_pred' #bbox_pred'
+    bbox_pred_name = 'bbox_pred' #'roi_td_bu_bbox_pred' #bbox_pred'
     # bbox regression weights
     bbox_reg_weights = cfg.MODEL.BBOX_REG_WEIGHTS
     score_rescalar = 1.0
