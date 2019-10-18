@@ -86,11 +86,11 @@ def add_fast_rcnn_decouple_outputs(model, blob_in_cls,blob_in_reg, dim):
         blob_in_cls,
         'cls_score',
         dim,
-        2 if cfg.MODEL.ROI_2CLS_ON else model.num_classes,
+        model.num_classes,
         weight_init=gauss_fill(0.01),
         bias_init=const_fill(0.0)
     )
-    if not model.train or cfg.MODEL.ROI_81CLS_ON:  # == if test
+    if not model.train:  # == if test
         # Only add softmax when testing; during training the softmax is combined
         # with the label cross entropy loss for numerical stability
         model.Softmax('cls_score', 'cls_prob', engine='CUDNN')
@@ -126,7 +126,7 @@ def add_fast_rcnn_all_roi_outputs(model, blob_in, dim):
         bias='cls_score_b'
     )
 
-    if not model.train or cfg.MODEL.ROI_HARD_NEG_ON:  # == if test
+    if not model.train:  # == if test
         # Only add softmax when testing; during training the softmax is combined
         # with the label cross entropy loss for numerical stability
         model.Softmax('all_roi_cls_score', 'all_roi_cls_prob', engine='CUDNN')

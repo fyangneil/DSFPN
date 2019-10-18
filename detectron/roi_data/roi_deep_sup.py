@@ -30,14 +30,12 @@ import numpy.random as npr
 from detectron.core.config import cfg
 import detectron.modeling.FPN as fpn
 import detectron.roi_data.keypoint_rcnn as keypoint_rcnn_roi_data
-import detectron.roi_data.mask_rcnn as mask_rcnn_roi_data
+import detectron.roi_data.mask_rcnn_deep_sup as mask_rcnn_roi_deep_sup_data
 import detectron.utils.blob as blob_utils
 import detectron.utils.boxes as box_utils
 from functools import reduce
 
 logger = logging.getLogger(__name__)
-super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
-                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80],13:[1,80]}
 
 
 def get_roi_deep_sup_blob_names(is_training=True):
@@ -51,19 +49,19 @@ def get_roi_deep_sup_blob_names(is_training=True):
         # foreground classes plus background
         blob_names += ['labels_int32_roi_deep_sup']
 
-    if is_training and cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
+    if is_training and cfg.MODEL.MASK_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
         # Shape is (#masks, 5) in format (batch_idx, x1, y1, x2, y2).
-        blob_names += ['mask_rois']
+        blob_names += ['mask_rois_deep_sup']
         # 'roi_has_mask': binary labels for the RoIs specified in 'rois'
         # indicating if each RoI has a mask or not. Note that in some cases
         # a *bg* RoI will have an all -1 (ignore) mask associated with it in
         # the case that no fg RoIs can be sampled. Shape is (batchsize).
-        blob_names += ['roi_has_mask_int32']
+        blob_names += ['roi_has_mask_deep_sup_int32']
         # 'masks_int32' holds binary masks for the RoIs specified in
         # 'mask_rois'. Shape is (#fg, M * M) where M is the ground truth
         # mask size.
-        blob_names += ['masks_int32']
+        blob_names += ['masks_deep_sup_int32']
     if is_training and cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
         # 'keypoint_rois': RoIs sampled for training the keypoint prediction
         # branch. Shape is (#instances, 5) in format (batch_idx, x1, y1, x2,
@@ -90,10 +88,10 @@ def get_roi_deep_sup_blob_names(is_training=True):
             blob_names += ['roi_deep_sup_fpn' + str(lvl)]
         blob_names += ['roi_deep_sup_idx_restore_int32']
         if is_training:
-            if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
+            if cfg.MODEL.MASK_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
                 for lvl in range(k_min, k_max + 1):
-                    blob_names += ['mask_rois_fpn' + str(lvl)]
-                blob_names += ['mask_rois_idx_restore_int32']
+                    blob_names += ['mask_rois_deep_sup_fpn' + str(lvl)]
+                blob_names += ['mask_rois_deep_sup_idx_restore_int32']
             if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
                 for lvl in range(k_min, k_max + 1):
                     blob_names += ['keypoint_rois_fpn' + str(lvl)]
@@ -101,15 +99,20 @@ def get_roi_deep_sup_blob_names(is_training=True):
     return blob_names
 
 
-def add_roi_deep_sup_blobs(blobs, rois, label=None):
+def add_roi_deep_sup_blobs(blobs, rois, label=None,
+                           mask_rois=None,roi_has_mask=None,masks=None):
     """Add blobs needed for training Fast R-CNN style models."""
     # Sample training RoIs from each image and append them to the blob lists
     im_ids=np.unique(rois[:,0])
     for i in range(im_ids.size):
         im_i=im_ids[i]
         rois_ind=np.where((rois[:, 0]==im_i))[0]
-
-        frcn_blobs = _sample_rois(rois[rois_ind,:],label[rois_ind])
+        if cfg.MODEL.MASK_DEEP_SUP_ON:
+            mask_rois_ind = np.where((mask_rois[:, 0] == im_i))[0]
+            frcn_blobs = _sample_rois(rois[rois_ind,:],label[rois_ind],
+                    mask_rois[mask_rois_ind,:],roi_has_mask[rois_ind],masks[mask_rois_ind,:])
+        else:
+            frcn_blobs = _sample_rois(rois[rois_ind, :], label[rois_ind])
 
         for k, v in frcn_blobs.items():
             blobs[k].append(v)
@@ -130,7 +133,7 @@ def add_roi_deep_sup_blobs(blobs, rois, label=None):
     return valid
 
 
-def _sample_rois(rois, label):
+def _sample_rois(rois, label,mask_rois=None,roi_has_mask=None,masks=None):
     """Generate a random sample of RoIs comprising foreground and background
     examples.
     """
@@ -140,6 +143,13 @@ def _sample_rois(rois, label):
     roi_deep_sup='roi_deep_sup'
 
     blob_dict = {labels_int32_roi_deep_sup:sampled_labels.astype(np.int32, copy=False),roi_deep_sup:sampled_rois}
+    # Optionally add Mask R-CNN blobs
+    if cfg.MODEL.MASK_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
+
+        mask_rcnn_roi_deep_sup_data.add_mask_rcnn_deep_sup_blobs(
+            blob_dict, mask_rois,roi_has_mask,masks
+        )
+
 
     return blob_dict
 
@@ -198,7 +208,7 @@ def _add_multilevel_rois(blobs):
         )
 
     _distribute_rois_over_fpn_levels('roi_deep_sup')
-    if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
-        _distribute_rois_over_fpn_levels('mask_rois')
+    if cfg.MODEL.MASK_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
+        _distribute_rois_over_fpn_levels('mask_rois_deep_sup')
     if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
         _distribute_rois_over_fpn_levels('keypoint_rois')

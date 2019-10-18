@@ -47,8 +47,7 @@ import detectron.utils.image as image_utils
 import detectron.utils.keypoints as keypoint_utils
 
 from functools import reduce
-super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
-                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80],13:[1,80]}
+
 logger = logging.getLogger(__name__)
 
 

@@ -4,12 +4,8 @@ MODEL:
   NUM_CLASSES: 81
   FASTER_RCNN: True
   MASK_ON: True
-  CASCADE_ON: False
+#  CASCADE_ON: False
   CLS_AGNOSTIC_BBOX_REG: True  # default: False
-  DECOUPLE_CLS_REG: True
-  FINE_FEATURE_ON: True
-  DEEP_SUP_ON: True
-  MASK_DEEP_SUP_ON: True
 NUM_GPUS: 1
 SOLVER:
   WEIGHT_DECAY: 0.0001
@@ -23,7 +19,7 @@ FPN:
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
 FAST_RCNN:
-  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head
+  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_head
   ROI_XFORM_METHOD: RoIAlign
   ROI_XFORM_RESOLUTION: 7
   ROI_XFORM_SAMPLING_RATIO: 2
@@ -41,10 +37,6 @@ CASCADE_RCNN:
   NUM_STAGE: 3
   TEST_STAGE: 3
   TEST_ENSEMBLE: True
-ROI_DEEP_SUP:
-  ROI_BOX_HEAD: roi_deep_sup_heads.add_roi_2mlp_decouple_head
-MRCNN_DEEP_SUP:
-  ROI_MASK_HEAD: mask_rcnn_deep_sup_heads.mask_rcnn_fcn_head_v1up4convs
 TRAIN:
   WEIGHTS: ./pretrained_model/R-50.pkl
   DATASETS: ('coco_2014_train', )

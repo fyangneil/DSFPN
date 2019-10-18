@@ -41,12 +41,8 @@ from detectron.ops.bbox_accuracy import BBoxAccuracyOp
 from detectron.ops.add_roi_deep_sup import AddRoiDeepSupOp
 from detectron.ops.add_roi_cascade_deep_sup import AddRoiCascadeDeepSupOp
 from detectron.ops.add_roi_td_bu import AddRoiTdBuOp
-from detectron.ops.add_roi_81_cls import AddRoi81ClsOp
-from detectron.ops.add_roi_specific_cls import AddRoiSpecificClsOp
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 
-import detectron.roi_data.roi_81_cls as roi_81_cls_roi_data
-import detectron.roi_data.roi_specific_cls as roi_specific_cls_roi_data
 import detectron.roi_data.roi_deep_sup as roi_deep_sup_data
 import detectron.roi_data.roi_cascade_deep_sup as roi_cascade_deep_sup_data
 import detectron.roi_data.roi_td_bu as roi_td_bu_data
@@ -243,64 +239,16 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         return outputs
 
 
-    def AddRoi81Cls(self):
-        if self.train:
-            if cfg.MODEL.ALL_ROI_ON:
-                blobs_in = ['all_rois']
-                blobs_in += ['all_labels_int32']
-                blobs_in += ['all_roi_cls_prob']
-            else:
-                blobs_in = ['rois']
-                blobs_in += ['labels_int32']
-                blobs_in += ['cls_prob']
-        else:
-            blobs_in = ['rois']
-            # blobs_in+=[str(category)]
-        blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
-        name = 'AddRoi81ClsOp:' + ','.join(
-            [str(b) for b in blobs_in]
-        )
-
-        # Prepare output blobs
-        blobs_out = roi_81_cls_roi_data.get_roi_81_cls_blob_names(is_training=self.train
-        )
-        blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
-
-        outputs = self.net.Python(
-            AddRoi81ClsOp(self.train).forward
-        )(blobs_in, blobs_out, name=name)
-
-        return outputs
-
-    def AddRoiSpecificCls(self):
-        if self.train:
-
-            blobs_in = ['roi_81_cls']
-            blobs_in += ['labels_int32_roi_81_cls']
-            blobs_in += ['roi_81_cls_prob']
-        else:
-            blobs_in = ['rois']
-            # blobs_in+=[str(category)]
-        blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
-        name = 'AddRoiSpecificClsOp:' + ','.join(
-            [str(b) for b in blobs_in]
-        )
-
-        # Prepare output blobs
-        blobs_out = roi_specific_cls_roi_data.get_roi_specific_cls_blob_names(is_training=self.train
-        )
-        blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
-
-        outputs = self.net.Python(
-            AddRoiSpecificClsOp(self.train).forward
-        )(blobs_in, blobs_out, name=name)
-
-        return outputs
-
     def AddRoiDeepSup(self):
         blobs_in = ['rois']
         if self.train:
             blobs_in += ['labels_int32']
+
+        if cfg.MODEL.MASK_DEEP_SUP_ON:
+            blobs_in += ['mask_rois']
+            if self.train:
+                blobs_in += ['roi_has_mask_int32']
+                blobs_in += ['masks_int32']
             # blobs_in+=[str(category)]
         blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
         name = 'AddRoiDeepSupOp:' + ','.join(

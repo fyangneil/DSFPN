@@ -491,21 +491,15 @@ __C.MODEL.RPN_ONLY = False
 # Use 'prof_dag' to get profiling statistics
 __C.MODEL.EXECUTION_TYPE = b'dag'
 
-__C.MODEL.ROI_2CLS_ON=False
-__C.MODEL.ROI_81CLS_ON=False
-__C.MODEL.ROI_2CLS_LOSS_OFF=False
-__C.MODEL.ROI_HARD_NEG_ON=False
-__C.MODEL.ROI_HARD_POS_ON=False
-__C.MODEL.ALL_ROI_ON=False
 __C.MODEL.DECOUPLE_CLS_REG=False
 __C.MODEL.FINE_FEATURE_ON=False
-__C.MODEL.PATCH_FEATURE_ON=False
-__C.MODEL.PATCH_FEATURE_81CLS_ON=False
+
 __C.MODEL.DEEP_SUP_ON=False
-__C.MODEL.SPECIFIC_CLS_HEAD_ON=False
 __C.MODEL.DEEP_SUP_RPN_ON=False
 __C.MODEL.TD_BU_ON=False
 __C.MODEL.CASCADE_DEEP_SUP_ON=False
+__C.MODEL.MASK_DEEP_SUP_ON=False
+
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
@@ -683,37 +677,13 @@ __C.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO = 0
 # pretrained FC layers like in VGG16, and will ignore this option
 __C.FAST_RCNN.ROI_XFORM_RESOLUTION = 14
 
-# ---------------------------------------------------------------------------- #
-# Super cls options
-# ---------------------------------------------------------------------------- #
-__C.SUPER_CLS = AttrDict()
-__C.SUPER_CLS.ROI_BOX_HEAD=b''
-__C.SUPER_CLS.NUM_CLASSES=-1
-__C.SUPER_CLS.START_CLS=-1
-__C.SUPER_CLS.END_CLS=-1
-__C.SUPER_CLS.SEL_CLS=(-1,)
-__C.SUPER_CLS.TEST_ENSEMBLE=False
+
 # ---------------------------------------------------------------------------- #
 # Fine cls options
 # ---------------------------------------------------------------------------- #
 __C.FINE_CLS = AttrDict()
 __C.FINE_CLS.ROI_BOX_HEAD=b''
 __C.FINE_CLS.NUM_CLASSES=-1
-# ---------------------------------------------------------------------------- #
-# roi 81 cls options
-# ---------------------------------------------------------------------------- #
-__C.ROI_81CLS = AttrDict()
-__C.ROI_81CLS.ROI_BOX_HEAD=b''
-# ---------------------------------------------------------------------------- #
-# roi specific cls options
-# ---------------------------------------------------------------------------- #
-__C.ROI_SPECIFIC_CLS = AttrDict()
-__C.ROI_SPECIFIC_CLS.ROI_BOX_HEAD=b''
-# ---------------------------------------------------------------------------- #
-# hard pos roi 81 cls options
-# ---------------------------------------------------------------------------- #
-__C.HARD_POS_ROI_81CLS = AttrDict()
-__C.HARD_POS_ROI_81CLS.ROI_BOX_HEAD=b''
 
 # ---------------------------------------------------------------------------- #
 # roi deep supervision options
@@ -731,6 +701,7 @@ __C.ROI_CASCADE_DEEP_SUP.ROI_BOX_HEAD=b''
 # ---------------------------------------------------------------------------- #
 __C.ROI_TD_BU = AttrDict()
 __C.ROI_TD_BU.ROI_BOX_HEAD=b''
+
 
 # ---------------------------------------------------------------------------- #
 # Cascade R-CNN options
@@ -889,6 +860,12 @@ __C.MRCNN.THRESH_BINARIZE = 0.5
 # Working stage in Cascade R-CNN during training
 __C.MRCNN.AT_STAGE = 1
 
+# ---------------------------------------------------------------------------- #
+# Mask R-CNN options ("MRCNN" means Mask R-CNN)
+# ---------------------------------------------------------------------------- #
+__C.MRCNN_DEEP_SUP = AttrDict()
+
+__C.MRCNN_DEEP_SUP.ROI_MASK_HEAD = b''
 
 # ---------------------------------------------------------------------------- #
 # Keypoint Mask R-CNN options ("KRCNN" = Mask R-CNN with Keypoint support)
