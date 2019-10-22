@@ -38,14 +38,12 @@ from detectron.ops.generate_proposals import GenerateProposalsOp
 from detectron.ops.decode_bboxes import DecodeBBoxesOp
 from detectron.ops.bbox_accuracy import BBoxAccuracyOp
 
-from detectron.ops.add_roi_deep_sup import AddRoiDeepSupOp
-from detectron.ops.add_roi_cascade_deep_sup import AddRoiCascadeDeepSupOp
-from detectron.ops.add_roi_td_bu import AddRoiTdBuOp
+from detectron.ops.add_roi_to_fast_rcnn_deep_sup import AddRoiDeepSupOp
+from detectron.ops.add_roi_to_cascade_rcnn_deep_sup import AddRoiCascadeDeepSupOp
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 
-import detectron.roi_data.roi_deep_sup as roi_deep_sup_data
-import detectron.roi_data.roi_cascade_deep_sup as roi_cascade_deep_sup_data
-import detectron.roi_data.roi_td_bu as roi_td_bu_data
+import detectron.roi_data.fast_rcnn_deep_sup as roi_deep_sup_data
+import detectron.roi_data.cascade_rcnn_deep_sup as roi_cascade_deep_sup_data
 import detectron.roi_data.cascade_rcnn as cascade_rcnn_roi_data
 import detectron.utils.c2 as c2_utils
 
@@ -244,7 +242,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         if self.train:
             blobs_in += ['labels_int32']
 
-        if cfg.MODEL.MASK_DEEP_SUP_ON:
+        if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
             blobs_in += ['mask_rois']
             if self.train:
                 blobs_in += ['roi_has_mask_int32']

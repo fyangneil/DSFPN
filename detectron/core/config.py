@@ -494,11 +494,9 @@ __C.MODEL.EXECUTION_TYPE = b'dag'
 __C.MODEL.DECOUPLE_CLS_REG=False
 __C.MODEL.FINE_FEATURE_ON=False
 
-__C.MODEL.DEEP_SUP_ON=False
-__C.MODEL.DEEP_SUP_RPN_ON=False
-__C.MODEL.TD_BU_ON=False
-__C.MODEL.CASCADE_DEEP_SUP_ON=False
-__C.MODEL.MASK_DEEP_SUP_ON=False
+__C.MODEL.FAST_RCNN_DEEP_SUP_ON=False
+__C.MODEL.CASCADE_RCNN_DEEP_SUP_ON=False
+__C.MODEL.MASK_RCNN_DEEP_SUP_ON=False
 
 
 # ---------------------------------------------------------------------------- #
@@ -677,31 +675,16 @@ __C.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO = 0
 # pretrained FC layers like in VGG16, and will ignore this option
 __C.FAST_RCNN.ROI_XFORM_RESOLUTION = 14
 
-
-# ---------------------------------------------------------------------------- #
-# Fine cls options
-# ---------------------------------------------------------------------------- #
-__C.FINE_CLS = AttrDict()
-__C.FINE_CLS.ROI_BOX_HEAD=b''
-__C.FINE_CLS.NUM_CLASSES=-1
-
 # ---------------------------------------------------------------------------- #
 # roi deep supervision options
 # ---------------------------------------------------------------------------- #
-__C.ROI_DEEP_SUP = AttrDict()
-__C.ROI_DEEP_SUP.ROI_BOX_HEAD=b''
+__C.FAST_RCNN_DEEP_SUP = AttrDict()
+__C.FAST_RCNN_DEEP_SUP.ROI_BOX_HEAD=b''
 # ---------------------------------------------------------------------------- #
 # roi cascade deep supervision options
 # ---------------------------------------------------------------------------- #
-__C.ROI_CASCADE_DEEP_SUP = AttrDict()
-__C.ROI_CASCADE_DEEP_SUP.ROI_BOX_HEAD=b''
-
-# ---------------------------------------------------------------------------- #
-# roi top down bottom up (td bu) options
-# ---------------------------------------------------------------------------- #
-__C.ROI_TD_BU = AttrDict()
-__C.ROI_TD_BU.ROI_BOX_HEAD=b''
-
+__C.CASCADE_RCNN_DEEP_SUP = AttrDict()
+__C.CASCADE_RCNN_DEEP_SUP.ROI_BOX_HEAD=b''
 
 # ---------------------------------------------------------------------------- #
 # Cascade R-CNN options

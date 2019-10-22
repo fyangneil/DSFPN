@@ -25,7 +25,7 @@ from detectron.datasets import json_dataset
 from detectron.datasets import roidb as roidb_utils
 import detectron.modeling.FPN as fpn
 
-import detectron.roi_data.roi_cascade_deep_sup as roi_cascade_deep_sup_data
+import detectron.roi_data.cascade_rcnn_deep_sup as roi_cascade_deep_sup_data
 
 import detectron.utils.blob as blob_utils
 

@@ -49,8 +49,6 @@ def get_minibatch_blob_names(is_training=True):
     if cfg.RPN.RPN_ON:
         # RPN-only or end-to-end Faster R-CNN
         blob_names += rpn_roi_data.get_rpn_blob_names(is_training=is_training)
-        if cfg.MODEL.DEEP_SUP_RPN_ON:
-            blob_names += rpn_roi_data.get_deep_sup_rpn_blob_names(is_training=is_training)
     elif cfg.RETINANET.RETINANET_ON:
         blob_names += retinanet_roi_data.get_retinanet_blob_names(
             is_training=is_training
@@ -74,8 +72,7 @@ def get_minibatch(roidb):
     if cfg.RPN.RPN_ON:
         # RPN-only or end-to-end Faster/Mask R-CNN
         valid = rpn_roi_data.add_rpn_blobs(blobs, im_scales, roidb)
-        if cfg.MODEL.DEEP_SUP_RPN_ON:
-            valid = rpn_roi_data.add_deep_sup_rpn_blobs(blobs, im_scales, roidb)
+
     elif cfg.RETINANET.RETINANET_ON:
         im_width, im_height = im_blob.shape[3], im_blob.shape[2]
         # im_width, im_height corresponds to the network input: padded image

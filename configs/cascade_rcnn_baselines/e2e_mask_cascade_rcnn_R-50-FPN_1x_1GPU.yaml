@@ -7,9 +7,9 @@ MODEL:
   CASCADE_ON: False
   CLS_AGNOSTIC_BBOX_REG: True  # default: False
   DECOUPLE_CLS_REG: True
-  FINE_FEATURE_ON: True
-  DEEP_SUP_ON: True
-  MASK_DEEP_SUP_ON: True
+  FINE_FEATURE_ON: False
+  FAST_RCNN_DEEP_SUP_ON: False
+  MASK_RCNN_DEEP_SUP_ON: False
 NUM_GPUS: 1
 SOLVER:
   WEIGHT_DECAY: 0.0001
@@ -41,8 +41,8 @@ CASCADE_RCNN:
   NUM_STAGE: 3
   TEST_STAGE: 3
   TEST_ENSEMBLE: True
-ROI_DEEP_SUP:
-  ROI_BOX_HEAD: roi_deep_sup_heads.add_roi_2mlp_decouple_head
+FAST_RCNN_DEEP_SUP:
+  ROI_BOX_HEAD: fast_rcnn_deep_sup_heads.add_roi_2mlp_decouple_head
 MRCNN_DEEP_SUP:
   ROI_MASK_HEAD: mask_rcnn_deep_sup_heads.mask_rcnn_fcn_head_v1up4convs
 TRAIN:

@@ -25,12 +25,12 @@ from detectron.datasets import json_dataset
 from detectron.datasets import roidb as roidb_utils
 import detectron.modeling.FPN as fpn
 
-import detectron.roi_data.roi_td_bu as roi_td_bu_data
+import detectron.roi_data.fast_rcnn_deep_sup as roi_deep_sup_data
 
 import detectron.utils.blob as blob_utils
 
 # import pydevd
-class AddRoiTdBuOp(object):
+class AddRoiDeepSupOp(object):
     def __init__(self, train):
         self._train = train
     def forward(self, inputs, outputs):
@@ -38,16 +38,24 @@ class AddRoiTdBuOp(object):
         inputs/outputs documentation.
         """
         # pydevd.settrace(suspend=False, trace_only_current_thread=True)
+        rois = inputs[0].data
+        if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
+            mask_rois = inputs[2].data
         if self._train:
-            rois = inputs[0].data
             label=inputs[1].data
-            output_blob_names = roi_td_bu_data.get_roi_td_bu_blob_names()
+            if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
+                roi_has_mask = inputs[3].data
+                masks= inputs[4].data
+            output_blob_names = roi_deep_sup_data.get_roi_deep_sup_blob_names()
             blobs = {k: [] for k in output_blob_names}
-            roi_td_bu_data.add_roi_td_bu_blobs(blobs, rois,label)
+            if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
+                roi_deep_sup_data.add_roi_deep_sup_blobs(blobs, rois,label,mask_rois,roi_has_mask,masks)
+            else:
+                roi_deep_sup_data.add_roi_deep_sup_blobs(blobs, rois, label)
+
             for i, k in enumerate(output_blob_names):
                 blob_utils.py_op_copy_blob(blobs[k], outputs[i])
         else:
-            rois = inputs[0].data
             distribute(rois, outputs)
 
 def distribute(rois, outputs):

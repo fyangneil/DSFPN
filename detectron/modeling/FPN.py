@@ -258,8 +258,6 @@ def add_fpn(model, fpn_level_info):
             blobs_fpn.insert(0, fpn_blob)
             spatial_scales.insert(0, spatial_scales[0] * 0.5)
     if cfg.MODEL.FINE_FEATURE_ON:
-        if cfg.MODEL.DEEP_SUP_RPN_ON:
-            blobs_fpn+=[P6_name]
         blobs_fpn+=inner_layers_list
 
 
