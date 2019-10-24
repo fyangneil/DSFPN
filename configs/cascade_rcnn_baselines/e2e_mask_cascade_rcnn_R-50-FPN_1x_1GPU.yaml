@@ -4,9 +4,9 @@ MODEL:
   NUM_CLASSES: 81
   FASTER_RCNN: True
   MASK_ON: True
-  CASCADE_ON: False
+  CASCADE_ON: True
   CLS_AGNOSTIC_BBOX_REG: True  # default: False
-  DECOUPLE_CLS_REG: True
+  DECOUPLE_CLS_REG: False
   FINE_FEATURE_ON: False
   FAST_RCNN_DEEP_SUP_ON: False
   MASK_RCNN_DEEP_SUP_ON: False
@@ -23,7 +23,7 @@ FPN:
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
 FAST_RCNN:
-  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head
+  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   ROI_XFORM_METHOD: RoIAlign
   ROI_XFORM_RESOLUTION: 7
   ROI_XFORM_SAMPLING_RATIO: 2
@@ -35,9 +35,9 @@ MRCNN:
   ROI_XFORM_SAMPLING_RATIO: 2  # default 0
   DILATION: 1  # default 2
   CONV_INIT: MSRAFill  # default GaussianFill
-#  AT_STAGE: 3
+  AT_STAGE: 3
 CASCADE_RCNN:
-  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head
+  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   NUM_STAGE: 3
   TEST_STAGE: 3
   TEST_ENSEMBLE: True

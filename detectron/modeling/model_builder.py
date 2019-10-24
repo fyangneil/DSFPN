@@ -274,7 +274,7 @@ def build_generic_detection_model(
                             model, add_roi_cascade_head_func,
                             blob_conv, dim_conv, spatial_scale_conv, stage
                         )
-                        if cfg.MODEL.CASCADE_rcnn_DEEP_SUP_ON:
+                        if cfg.MODEL.CASCADE_RCNN_DEEP_SUP_ON:
                             head_loss_gradients['roi'+stage_name+'_deep_sup_decouple'] = _add_cascade_rcnn_deep_sup_decouple_head(
                                 model, add_roi_cascade_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
                                 spatial_scale_conv,stage
@@ -284,7 +284,7 @@ def build_generic_detection_model(
                             model, add_roi_cascade_head_func,
                             blob_conv, dim_conv, spatial_scale_conv, stage
                         )
-                        if cfg.MODEL.CASCADE_DEEP_SUP_ON:
+                        if cfg.MODEL.CASCADE_RCNN_DEEP_SUP_ON:
                             head_loss_gradients['roi'+stage_name+'_deep_sup'] = _add_cascade_rcnn_deep_sup_head(
                                 model, add_roi_cascade_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
                                 spatial_scale_conv,stage
@@ -349,10 +349,7 @@ def _add_fast_rcnn_head(
     )
     fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn, dim_frcn)
     if model.train:
-        if cfg.MODEL.ROI_2CLS_LOSS_OFF:
-            loss_gradients = None
-        else:
-            loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
+        loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
 
     else:
         loss_gradients = None
