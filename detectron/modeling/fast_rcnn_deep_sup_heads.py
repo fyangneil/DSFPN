@@ -128,34 +128,37 @@ def add_roi_deep_sup_decouple_outputs(model, blob_in_cls,blob_in_reg, dim):
 
 def add_roi_deep_sup_losses(model):
     """Add losses for RoI classification and bounding box regression."""
+    stage = 1 if cfg.FAST_RCNN_DEEP_SUP.AT_STAGE == 1 else cfg.FAST_RCNN_DEEP_SUP.AT_STAGE
+    stage_name = '_{}'.format(stage) if stage > 1 else ''
     loss_scalar = 1
     if cfg.MODEL.CASCADE_ON and cfg.CASCADE_RCNN.SCALE_LOSS:
         loss_scalar = cfg.CASCADE_RCNN.STAGE_WEIGHTS[0]
     roi_deep_sup_prob, loss_roi_deep_sup_cls = model.net.SoftmaxWithLoss(
         ['roi_deep_sup_score', 'labels_int32_roi_deep_sup'],
-        ['roi_deep_sup_prob', 'loss_roi_deep_sup_cls'],
+        ['roi_deep_sup_prob', 'loss_roi_deep_sup_cls'+stage_name],
         scale=model.GetLossScale() * loss_scalar
     )
 
+
     loss_roi_deep_sup_bbox = model.net.SmoothL1Loss(
         [
-            'roi_deep_sup_bbox_pred', 'bbox_targets', 'bbox_inside_weights',
-            'bbox_outside_weights'
+            'roi_deep_sup_bbox_pred', 'bbox_targets'+stage_name, 'bbox_inside_weights'+stage_name,
+            'bbox_outside_weights'+stage_name
         ],
-        'loss_deep_sup_bbox',
+        'loss_deep_sup_bbox'+stage_name,
         scale=model.GetLossScale() * loss_scalar
     )
     loss_gradients = blob_utils.get_loss_gradients(model, [loss_roi_deep_sup_cls, loss_roi_deep_sup_bbox])
     model.Accuracy(['roi_deep_sup_prob', 'labels_int32_roi_deep_sup'],
-                   'accuracy_roi_deep_sup_cls')
-    model.AddLosses(['loss_roi_deep_sup_cls','loss_deep_sup_bbox'])
-    model.AddMetrics('accuracy_roi_deep_sup_cls')
+                   'accuracy_roi_deep_sup_cls'+stage_name)
+    model.AddLosses(['loss_roi_deep_sup_cls'+stage_name,'loss_deep_sup_bbox'+stage_name])
+    model.AddMetrics('accuracy_roi_deep_sup_cls'+stage_name)
 
     bbox_reg_weights = cfg.MODEL.BBOX_REG_WEIGHTS
     model.AddBBoxAccuracy(
-        ['roi_deep_sup_bbox_pred', 'roi_deep_sup', 'labels_int32_roi_deep_sup', 'mapped_gt_boxes'],
-        ['deep_sup_bbox_iou', 'deep_sup_bbox_iou_pre'], bbox_reg_weights)
-    model.AddMetrics(['deep_sup_bbox_iou', 'deep_sup_bbox_iou_pre'])
+        ['roi_deep_sup_bbox_pred', 'roi_deep_sup', 'labels_int32_roi_deep_sup', 'mapped_gt_boxes'+stage_name],
+        ['deep_sup_bbox_iou'+stage_name, 'deep_sup_bbox_iou_pre'+stage_name], bbox_reg_weights)
+    model.AddMetrics(['deep_sup_bbox_iou'+stage_name, 'deep_sup_bbox_iou_pre'+stage_name])
     return loss_gradients
 
 

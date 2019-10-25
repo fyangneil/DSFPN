@@ -680,6 +680,7 @@ __C.FAST_RCNN.ROI_XFORM_RESOLUTION = 14
 # ---------------------------------------------------------------------------- #
 __C.FAST_RCNN_DEEP_SUP = AttrDict()
 __C.FAST_RCNN_DEEP_SUP.ROI_BOX_HEAD=b''
+__C.FAST_RCNN_DEEP_SUP.AT_STAGE=1
 # ---------------------------------------------------------------------------- #
 # roi cascade deep supervision options
 # ---------------------------------------------------------------------------- #
@@ -849,6 +850,7 @@ __C.MRCNN.AT_STAGE = 1
 __C.MRCNN_DEEP_SUP = AttrDict()
 
 __C.MRCNN_DEEP_SUP.ROI_MASK_HEAD = b''
+__C.MRCNN_DEEP_SUP.AT_STAGE=1
 
 # ---------------------------------------------------------------------------- #
 # Keypoint Mask R-CNN options ("KRCNN" = Mask R-CNN with Keypoint support)

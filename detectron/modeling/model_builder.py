@@ -249,18 +249,7 @@ def build_generic_detection_model(
                         spatial_scale_conv
                     )
 
-        if cfg.MODEL.FAST_RCNN_DEEP_SUP_ON:
-            if cfg.MODEL.DECOUPLE_CLS_REG:
-                head_loss_gradients['roi_deep_sup_decouple'] = _add_fast_rcnn_deep_sup_decouple_head(
-                        model, add_roi_fast_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
-                        spatial_scale_conv
-                    )
 
-            else:
-                head_loss_gradients['roi_deep_sup'] = _add_fast_rcnn_deep_sup_head(
-                        model, add_roi_fast_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
-                        spatial_scale_conv
-                    )
 
 
             if cfg.MODEL.CASCADE_ON:
@@ -296,6 +285,19 @@ def build_generic_detection_model(
                 model, add_roi_mask_head_func, blob_conv, dim_conv,
                 spatial_scale_conv
             )
+
+        if cfg.MODEL.FAST_RCNN_DEEP_SUP_ON:
+            if cfg.MODEL.DECOUPLE_CLS_REG:
+                head_loss_gradients['roi_deep_sup_decouple'] = _add_fast_rcnn_deep_sup_decouple_head(
+                        model, add_roi_fast_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
+                        spatial_scale_conv
+                    )
+
+            else:
+                head_loss_gradients['roi_deep_sup'] = _add_fast_rcnn_deep_sup_head(
+                        model, add_roi_fast_deep_sup_head_func, blob_inner_lateral_conv, dim_conv,
+                        spatial_scale_conv
+                    )
         if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
             # Add the mask deep head
             head_loss_gradients['mask_deep_sup'] = _add_roi_mask_deep_sup_head(

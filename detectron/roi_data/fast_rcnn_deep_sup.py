@@ -49,7 +49,7 @@ def get_roi_deep_sup_blob_names(is_training=True):
         # foreground classes plus background
         blob_names += ['labels_int32_roi_deep_sup']
 
-    if is_training and cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
+    if is_training and cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
         # Shape is (#masks, 5) in format (batch_idx, x1, y1, x2, y2).
         blob_names += ['mask_rois_deep_sup']
@@ -62,22 +62,7 @@ def get_roi_deep_sup_blob_names(is_training=True):
         # 'mask_rois'. Shape is (#fg, M * M) where M is the ground truth
         # mask size.
         blob_names += ['masks_deep_sup_int32']
-    if is_training and cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
-        # 'keypoint_rois': RoIs sampled for training the keypoint prediction
-        # branch. Shape is (#instances, 5) in format (batch_idx, x1, y1, x2,
-        # y2).
-        blob_names += ['keypoint_rois']
-        # 'keypoint_locations_int32': index of keypoint in
-        # KRCNN.HEATMAP_SIZE**2 sized array. Shape is (#instances). Used in
-        # SoftmaxWithLoss.
-        blob_names += ['keypoint_locations_int32']
-        # 'keypoint_weights': weight assigned to each target in
-        # 'keypoint_locations_int32'. Shape is (#instances). Used in
-        # SoftmaxWithLoss.
-        blob_names += ['keypoint_weights']
-        # 'keypoint_loss_normalizer': optional normalization factor to use if
-        # cfg.KRCNN.NORMALIZE_BY_VISIBLE_KEYPOINTS is False.
-        blob_names += ['keypoint_loss_normalizer']
+
     if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_ROIS:
         # Support for FPN multi-level rois without bbox reg isn't
         # implemented (... and may never be implemented)
@@ -88,14 +73,11 @@ def get_roi_deep_sup_blob_names(is_training=True):
             blob_names += ['roi_deep_sup_fpn' + str(lvl)]
         blob_names += ['roi_deep_sup_idx_restore_int32']
         if is_training:
-            if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
+            if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
                 for lvl in range(k_min, k_max + 1):
                     blob_names += ['mask_rois_deep_sup_fpn' + str(lvl)]
                 blob_names += ['mask_rois_deep_sup_idx_restore_int32']
-            if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
-                for lvl in range(k_min, k_max + 1):
-                    blob_names += ['keypoint_rois_fpn' + str(lvl)]
-                blob_names += ['keypoint_rois_idx_restore_int32']
+
     return blob_names
 
 
@@ -127,8 +109,7 @@ def add_roi_deep_sup_blobs(blobs, rois, label=None,
     # Perform any final work and validity checks after the collating blobs for
     # all minibatch images
     valid = True
-    if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
-        valid = keypoint_rcnn_roi_data.finalize_keypoint_minibatch(blobs, valid)
+
 
     return valid
 
@@ -144,7 +125,7 @@ def _sample_rois(rois, label,mask_rois=None,roi_has_mask=None,masks=None):
 
     blob_dict = {labels_int32_roi_deep_sup:sampled_labels.astype(np.int32, copy=False),roi_deep_sup:sampled_rois}
     # Optionally add Mask R-CNN blobs
-    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
+    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
 
         mask_rcnn_roi_deep_sup_data.add_mask_rcnn_deep_sup_blobs(
             blob_dict, mask_rois,roi_has_mask,masks
@@ -208,7 +189,7 @@ def _add_multilevel_rois(blobs):
         )
 
     _distribute_rois_over_fpn_levels('roi_deep_sup')
-    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN.AT_STAGE == 1:
+    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
         _distribute_rois_over_fpn_levels('mask_rois_deep_sup')
     if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
         _distribute_rois_over_fpn_levels('keypoint_rois')

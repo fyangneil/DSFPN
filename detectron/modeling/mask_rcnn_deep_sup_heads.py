@@ -304,7 +304,7 @@ def add_ResNet_roi_conv5_head_for_masks(model, blob_in, dim_in, spatial_scale):
     model.RoIFeatureTransform(
         blob_in,
         blob_out='_[mask]_pool5',
-        blob_rois='mask_rois',
+        blob_rois='mask_rois_deep_sup',
         method=cfg.MRCNN.ROI_XFORM_METHOD,
         resolution=cfg.MRCNN.ROI_XFORM_RESOLUTION,
         sampling_ratio=cfg.MRCNN.ROI_XFORM_SAMPLING_RATIO,

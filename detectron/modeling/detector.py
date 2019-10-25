@@ -238,11 +238,18 @@ class DetectionModelHelper(cnn.CNNModelHelper):
 
 
     def AddRoiDeepSup(self):
-        blobs_in = ['rois']
+
+
+        stage = 1 if cfg.FAST_RCNN_DEEP_SUP.AT_STAGE == 1 else cfg.FAST_RCNN_DEEP_SUP.AT_STAGE
+        stage_name = '_{}'.format(stage) if stage > 1 else ''
+
+        blobs_in = ['rois'+stage_name]
         if self.train:
-            blobs_in += ['labels_int32']
+            blobs_in += ['labels_int32'+stage_name]
 
         if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
+            assert cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE
+
             blobs_in += ['mask_rois']
             if self.train:
                 blobs_in += ['roi_has_mask_int32']
@@ -263,6 +270,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         )(blobs_in, blobs_out, name=name)
 
         return outputs
+
     def AddRoiCascadeDeepSup(self,stage):
         stage_name = '_{}'.format(stage)
 
@@ -284,26 +292,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         )(blobs_in, blobs_out, name=name)
 
         return outputs
-    def AddRoiTdBu(self):
-        blobs_in = ['rois']
-        if self.train:
-            blobs_in += ['labels_int32']
-            # blobs_in+=[str(category)]
-        blobs_in = [core.ScopedBlobReference(b) for b in blobs_in]
-        name = 'AddRoiTdBuOp:' + ','.join(
-            [str(b) for b in blobs_in]
-        )
 
-        # Prepare output blobs
-        blobs_out = roi_td_bu_data.get_roi_td_bu_blob_names(is_training=self.train
-        )
-        blobs_out = [core.ScopedBlobReference(b) for b in blobs_out]
-
-        outputs = self.net.Python(
-            AddRoiTdBuOp(self.train).forward
-        )(blobs_in, blobs_out, name=name)
-
-        return outputs
 
     def DecodeBBoxes(self, blobs_in, blobs_out, bbox_reg_weights):
         """Op for decoding bboxes. Only support class-agnostic bbox regression.

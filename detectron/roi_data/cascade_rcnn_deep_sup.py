@@ -36,8 +36,6 @@ import detectron.utils.boxes as box_utils
 from functools import reduce
 
 logger = logging.getLogger(__name__)
-super2fine_map={1:[1,1],2:[2,9],3:[10,14],4:[15,24],5:[25,29],6:[30,39],
-                7:[40,46],8:[47,56],9:[57,62],10:[63,68],11:[69,73],12:[74,80],13:[1,80]}
 
 
 def get_roi_cascade_deep_sup_blob_names(stage,is_training=True):
@@ -53,7 +51,7 @@ def get_roi_cascade_deep_sup_blob_names(stage,is_training=True):
         # foreground classes plus background
         blob_names += ['labels_int32_roi'+stage_name+'_deep_sup']
 
-    if is_training and cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
+    if is_training and cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 3:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
         # Shape is (#masks, 5) in format (batch_idx, x1, y1, x2, y2).
         blob_names += ['mask_rois']
