@@ -248,7 +248,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
             blobs_in += ['labels_int32'+stage_name]
 
         if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
-            assert cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE
+            assert cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.FAST_RCNN_DEEP_SUP.AT_STAGE
 
             blobs_in += ['mask_rois']
             if self.train:

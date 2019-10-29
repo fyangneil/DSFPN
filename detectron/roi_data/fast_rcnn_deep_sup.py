@@ -49,7 +49,7 @@ def get_roi_deep_sup_blob_names(is_training=True):
         # foreground classes plus background
         blob_names += ['labels_int32_roi_deep_sup']
 
-    if is_training and cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
+    if is_training and cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.FAST_RCNN_DEEP_SUP.AT_STAGE:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
         # Shape is (#masks, 5) in format (batch_idx, x1, y1, x2, y2).
         blob_names += ['mask_rois_deep_sup']
@@ -73,7 +73,7 @@ def get_roi_deep_sup_blob_names(is_training=True):
             blob_names += ['roi_deep_sup_fpn' + str(lvl)]
         blob_names += ['roi_deep_sup_idx_restore_int32']
         if is_training:
-            if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
+            if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.FAST_RCNN_DEEP_SUP.AT_STAGE:
                 for lvl in range(k_min, k_max + 1):
                     blob_names += ['mask_rois_deep_sup_fpn' + str(lvl)]
                 blob_names += ['mask_rois_deep_sup_idx_restore_int32']
@@ -125,13 +125,11 @@ def _sample_rois(rois, label,mask_rois=None,roi_has_mask=None,masks=None):
 
     blob_dict = {labels_int32_roi_deep_sup:sampled_labels.astype(np.int32, copy=False),roi_deep_sup:sampled_rois}
     # Optionally add Mask R-CNN blobs
-    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
+    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.FAST_RCNN_DEEP_SUP.AT_STAGE:
 
         mask_rcnn_roi_deep_sup_data.add_mask_rcnn_deep_sup_blobs(
             blob_dict, mask_rois,roi_has_mask,masks
         )
-
-
     return blob_dict
 
 
@@ -189,7 +187,7 @@ def _add_multilevel_rois(blobs):
         )
 
     _distribute_rois_over_fpn_levels('roi_deep_sup')
-    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.MRCNN.AT_STAGE:
+    if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON and cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.FAST_RCNN_DEEP_SUP.AT_STAGE:
         _distribute_rois_over_fpn_levels('mask_rois_deep_sup')
     if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
         _distribute_rois_over_fpn_levels('keypoint_rois')
