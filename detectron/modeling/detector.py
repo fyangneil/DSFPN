@@ -239,7 +239,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
 
     def AddRoiDeepSup(self):
 
-
+        assert cfg.MRCNN_DEEP_SUP.AT_STAGE==cfg.FAST_RCNN_DEEP_SUP.AT_STAGE
         stage = 1 if cfg.FAST_RCNN_DEEP_SUP.AT_STAGE == 1 else cfg.FAST_RCNN_DEEP_SUP.AT_STAGE
         stage_name = '_{}'.format(stage) if stage > 1 else ''
 
@@ -248,8 +248,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
             blobs_in += ['labels_int32'+stage_name]
 
         if cfg.MODEL.MASK_RCNN_DEEP_SUP_ON:
-            assert cfg.MRCNN_DEEP_SUP.AT_STAGE == cfg.FAST_RCNN_DEEP_SUP.AT_STAGE
-
             blobs_in += ['mask_rois']
             if self.train:
                 blobs_in += ['roi_has_mask_int32']
@@ -270,7 +268,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         )(blobs_in, blobs_out, name=name)
 
         return outputs
-
     def AddRoiCascadeDeepSup(self,stage):
         stage_name = '_{}'.format(stage)
 
