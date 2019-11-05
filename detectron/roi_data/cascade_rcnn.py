@@ -48,19 +48,19 @@ def get_cascade_rcnn_blob_names(stage, is_training=True):
         blob_names += ["bbox_inside_weights" + stage_name]
         blob_names += ["bbox_outside_weights" + stage_name]
         blob_names += ["mapped_gt_boxes" + stage_name]
-    if is_training and cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == stage:
+    if is_training and cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 3:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
         # Shape is (#masks, 5) in format (batch_idx, x1, y1, x2, y2).
-        blob_names += ["mask_rois"]
+        blob_names += ["mask_rois"+ stage_name]
         # 'roi_has_mask': binary labels for the RoIs specified in 'rois'
         # indicating if each RoI has a mask or not. Note that in some cases
         # a *bg* RoI will have an all -1 (ignore) mask associated with it in
         # the case that no fg RoIs can be sampled. Shape is (batchsize).
-        blob_names += ["roi_has_mask_int32"]
+        blob_names += ["roi_has_mask_int32"+ stage_name]
         # 'masks_int32' holds binary masks for the RoIs specified in
         # 'mask_rois'. Shape is (#fg, M * M) where M is the ground truth
         # mask size.
-        blob_names += ["masks_int32"]
+        blob_names += ["masks_int32"+ stage_name]
     if is_training and cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == stage:
         # 'keypoint_rois': RoIs sampled for training the keypoint prediction
         # branch. Shape is (#instances, 5) in format (batch_idx, x1, y1, x2,
@@ -89,8 +89,8 @@ def get_cascade_rcnn_blob_names(stage, is_training=True):
         if is_training:
             if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == stage:
                 for lvl in range(k_min, k_max + 1):
-                    blob_names += ["mask_rois_fpn" + str(lvl)]
-                blob_names += ["mask_rois_idx_restore_int32"]
+                    blob_names += ["mask_rois"+stage_name+"_fpn" + str(lvl)]
+                blob_names += ["mask_rois"+stage_name+"_idx_restore_int32"]
             if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == stage:
                 for lvl in range(k_min, k_max + 1):
                     blob_names += ['keypoint_rois_fpn' + str(lvl)]
@@ -189,9 +189,9 @@ def _sample_rois(roidb, im_scale, batch_idx, stage):
     )
 
     # Optionally add Mask R-CNN blobs
-    if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == stage:
+    if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 3:
         mask_rcnn_roi_data.add_mask_rcnn_blobs(
-            blob_dict, sampled_boxes, roidb, im_scale, batch_idx
+            blob_dict, sampled_boxes, roidb, im_scale, batch_idx,stage
         )
 
     # Optionally add Keypoint R-CNN blobs
@@ -270,6 +270,6 @@ def _add_multilevel_rois(blobs, stage):
 
     _distribute_rois_over_fpn_levels("rois" + stage_name)
     if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == stage:
-        _distribute_rois_over_fpn_levels("mask_rois")
+        _distribute_rois_over_fpn_levels("mask_rois"+stage_name)
     if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == stage:
         _distribute_rois_over_fpn_levels('keypoint_rois')

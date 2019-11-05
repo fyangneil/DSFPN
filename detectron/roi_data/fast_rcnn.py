@@ -57,7 +57,7 @@ def get_fast_rcnn_blob_names(is_training=True):
         blob_names += ['bbox_inside_weights']
         blob_names += ['bbox_outside_weights']
         blob_names += ['mapped_gt_boxes']
-    if is_training and cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
+    if is_training and cfg.MODEL.MASK_ON:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
         # Shape is (#masks, 5) in format (batch_idx, x1, y1, x2, y2).
         blob_names += ['mask_rois']
@@ -98,7 +98,7 @@ def get_fast_rcnn_blob_names(is_training=True):
         blob_names += ['rois_idx_restore_int32']
 
         if is_training:
-            if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
+            if cfg.MODEL.MASK_ON :
                 for lvl in range(k_min, k_max + 1):
                     blob_names += ['mask_rois_fpn' + str(lvl)]
                 blob_names += ['mask_rois_idx_restore_int32']
@@ -215,9 +215,9 @@ def _sample_rois(roidb, im_scale, batch_idx):
     )
 
     # Optionally add Mask R-CNN blobs
-    if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
+    if cfg.MODEL.MASK_ON:
         mask_rcnn_roi_data.add_mask_rcnn_blobs(
-            blob_dict, sampled_boxes, roidb, im_scale, batch_idx
+            blob_dict, sampled_boxes, roidb, im_scale, batch_idx,stage=1
         )
 
     # Optionally add Keypoint R-CNN blobs
@@ -284,7 +284,7 @@ def _add_multilevel_rois(blobs):
         )
 
     _distribute_rois_over_fpn_levels('rois')
-    if cfg.MODEL.MASK_ON and cfg.MRCNN.AT_STAGE == 1:
+    if cfg.MODEL.MASK_ON:
         _distribute_rois_over_fpn_levels('mask_rois')
     if cfg.MODEL.KEYPOINTS_ON and cfg.KRCNN.AT_STAGE == 1:
         _distribute_rois_over_fpn_levels('keypoint_rois')

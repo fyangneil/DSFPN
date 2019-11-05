@@ -95,8 +95,10 @@ def add_mask_rcnn_outputs(model, blob_in, dim):
 
 def add_mask_rcnn_losses(model, blob_mask):
     """Add Mask R-CNN specific losses."""
+    stage = cfg.MRCNN.AT_STAGE if cfg.MODEL.CASCADE_ON else 1
+    stage_name = '_{}'.format(stage) if stage > 1 else ''
     loss_mask = model.net.SigmoidCrossEntropyLoss(
-        [blob_mask, 'masks_int32'],
+        [blob_mask, 'masks_int32'+stage_name],
         'loss_mask',
         scale=model.GetLossScale() * cfg.MRCNN.WEIGHT_LOSS_MASK
     )
@@ -134,10 +136,13 @@ def mask_rcnn_fcn_head_v1upXconvs(
     model, blob_in, dim_in, spatial_scale, num_convs
 ):
     """v1upXconvs design: X * (conv 3x3), convT 2x2."""
+    stage = cfg.MRCNN.AT_STAGE if cfg.MODEL.CASCADE_ON else 1
+    stage_name = '_{}'.format(stage) if stage > 1 else ''
+
     current = model.RoIFeatureTransform(
         blob_in,
         blob_out='_[mask]_roi_feat',
-        blob_rois='mask_rois',
+        blob_rois='mask_rois'+stage_name,
         method=cfg.MRCNN.ROI_XFORM_METHOD,
         resolution=cfg.MRCNN.ROI_XFORM_RESOLUTION,
         sampling_ratio=cfg.MRCNN.ROI_XFORM_SAMPLING_RATIO,

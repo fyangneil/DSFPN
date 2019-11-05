@@ -34,10 +34,11 @@ import detectron.utils.segms as segm_utils
 logger = logging.getLogger(__name__)
 
 
-def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
+def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx,stage=1):
     """Add Mask R-CNN specific blobs to the input blob dictionary."""
     # Prepare the mask targets by associating one gt mask to each training roi
     # that has a fg (non-bg) class label.
+    stage_name = '_{}'.format(stage) if stage > 1 else ''
     M = cfg.MRCNN.RESOLUTION
     polys_gt_inds = np.where(
         (roidb['gt_classes'] > 0) & (roidb['is_crowd'] == 0)
@@ -97,9 +98,9 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
     rois_fg = np.hstack((repeated_batch_idx, rois_fg))
 
     # Update blobs dict with Mask R-CNN blobs
-    blobs['mask_rois'] = rois_fg
-    blobs['roi_has_mask_int32'] = roi_has_mask
-    blobs['masks_int32'] = masks
+    blobs['mask_rois'+stage_name] = rois_fg
+    blobs['roi_has_mask_int32'+stage_name] = roi_has_mask
+    blobs['masks_int32'+stage_name] = masks
 
 
 def _expand_to_class_specific_mask_targets(masks, mask_class_labels):
