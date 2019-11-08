@@ -64,7 +64,7 @@ def im_detect_all(model, im, box_proposals, timers=None):
     if cfg.TEST.BBOX_AUG.ENABLED:
         scores, boxes, im_scale = im_detect_bbox_aug(model, im, box_proposals)
     else:
-        scores, boxes, im_scale = im_detect_bbox(
+        scores, boxes, im_scale,featture_map = im_detect_bbox(
             model, im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE, boxes=box_proposals
         )
     timers['im_detect_bbox'].toc()
@@ -107,7 +107,7 @@ def im_detect_all(model, im, box_proposals, timers=None):
     else:
         cls_keyps = None
 
-    return cls_boxes, cls_segms, cls_keyps
+    return cls_boxes, cls_segms, cls_keyps,featture_map
 
 
 def im_conv_body_only(model, im, target_scale, target_max_size):
@@ -194,8 +194,17 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
     # In case there is 1 proposal
     scores = scores.reshape([-1, scores.shape[-1]])
     scores *= score_rescalar
+    #get the feature map
 
-
+    feat_map_name='fpn_res5_2_sum'
+    fpn_res5_2_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+    feat_map_name='fpn_res4_5_sum'
+    fpn_res4_5_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+    feat_map_name = 'fpn_res3_3_sum'
+    fpn_res3_3_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+    feat_map_name = 'fpn_res2_2_sum'
+    fpn_res2_2_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+    feat_map=[fpn_res5_2_sum,fpn_res4_5_sum,fpn_res3_3_sum,fpn_res2_2_sum]
 
     if cfg.TEST.BBOX_REG:
         # Apply bounding-box regression deltas
@@ -220,7 +229,7 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
         scores = scores[inv_index, :]
         pred_boxes = pred_boxes[inv_index, :]
 
-    return scores, pred_boxes, im_scale
+    return scores, pred_boxes, im_scale,feat_map
 
 
 def im_detect_bbox_aug(model, im, box_proposals=None):
@@ -419,11 +428,13 @@ def im_detect_mask(model, im_scale, boxes):
     if boxes.shape[0] == 0:
         pred_masks = np.zeros((0, M, M), np.float32)
         return pred_masks
+    stage = 1 if cfg.MRCNN.AT_STAGE == 1 else cfg.MRCNN.AT_STAGE
+    stage_name = '_{}'.format(stage) if stage > 1 else ''
 
-    inputs = {'mask_rois': _get_rois_blob(boxes, im_scale)}
+    inputs = {'mask_rois'+stage_name: _get_rois_blob(boxes, im_scale)}
     # Add multi-level rois for FPN
     if cfg.FPN.MULTILEVEL_ROIS:
-        _add_multilevel_rois_for_test(inputs, 'mask_rois')
+        _add_multilevel_rois_for_test(inputs, 'mask_rois'+stage_name)
 
     for k, v in inputs.items():
         workspace.FeedBlob(core.ScopedName(k), v)

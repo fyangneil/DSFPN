@@ -27,6 +27,7 @@ import logging
 import numpy as np
 import os
 import yaml
+import pickle
 
 from caffe2.python import workspace
 
@@ -254,7 +255,7 @@ def test_net(
 
         im = cv2.imread(entry['image'])
         with c2_utils.NamedCudaScope(gpu_id):
-            cls_boxes_i, cls_segms_i, cls_keyps_i = im_detect_all(
+            cls_boxes_i, cls_segms_i, cls_keyps_i,feature_map_i = im_detect_all(
                 model, im, box_proposals, timers
             )
 
@@ -302,6 +303,15 @@ def test_net(
                 dataset=dataset,
                 show_class=True
             )
+            #save feature map lsit
+
+            save_dir=os.path.join(output_dir, 'feat_map')
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            save_file=os.path.join(save_dir, im_name)
+
+            with open(save_file, "wb") as fp:
+                pickle.dump(feature_map_i, fp)
 
     cfg_yaml = yaml.dump(cfg)
     if ind_range is not None:
