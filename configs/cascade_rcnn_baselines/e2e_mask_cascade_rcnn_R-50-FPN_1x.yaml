@@ -2,9 +2,10 @@ MODEL:
   TYPE: generalized_rcnn
   CONV_BODY: FPN.add_fpn_ResNet50_conv5_body
   NUM_CLASSES: 81
+  RPN_ONLY: False
   FASTER_RCNN: True
   MASK_ON: True
-  CASCADE_ON: True
+  CASCADE_ON: False
   CLS_AGNOSTIC_BBOX_REG: True  # default: False
   DECOUPLE_CLS_REG: True
 NUM_GPUS: 1
@@ -20,7 +21,7 @@ FPN:
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
 FAST_RCNN:
-  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head
+  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   ROI_XFORM_METHOD: RoIAlign
   ROI_XFORM_RESOLUTION: 7
   ROI_XFORM_SAMPLING_RATIO: 2
@@ -32,9 +33,9 @@ MRCNN:
   ROI_XFORM_SAMPLING_RATIO: 2  # default 0
   DILATION: 1  # default 2
   CONV_INIT: MSRAFill  # default GaussianFill
-  AT_STAGE: 3
+  AT_STAGE: 1
 CASCADE_RCNN:
-  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_decouple_head #add_roi_2mlp_head
+  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   NUM_STAGE: 3
   TEST_STAGE: 3
   TEST_ENSEMBLE: True
@@ -52,7 +53,7 @@ TEST:
   NMS: 0.5
   RPN_PRE_NMS_TOP_N: 1000  # Per FPN level
   RPN_POST_NMS_TOP_N: 1000
-VIS: True
+VIS: False
 VIS_TH: 0.5
 
 OUTPUT_DIR: .

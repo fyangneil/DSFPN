@@ -195,16 +195,30 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
     scores = scores.reshape([-1, scores.shape[-1]])
     scores *= score_rescalar
     #get the feature map
+    if 0:
+        feat_map_name='fpn_res5_2_sum'
+        fpn_res5_2_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+        feat_map_name='fpn_res4_5_sum'
+        fpn_res4_5_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+        feat_map_name = 'fpn_res3_3_sum'
+        fpn_res3_3_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+        feat_map_name = 'fpn_res2_2_sum'
+        fpn_res2_2_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
 
-    feat_map_name='fpn_res5_2_sum'
-    fpn_res5_2_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
-    feat_map_name='fpn_res4_5_sum'
-    fpn_res4_5_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
-    feat_map_name = 'fpn_res3_3_sum'
-    fpn_res3_3_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
-    feat_map_name = 'fpn_res2_2_sum'
-    fpn_res2_2_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
-    feat_map=[fpn_res5_2_sum,fpn_res4_5_sum,fpn_res3_3_sum,fpn_res2_2_sum]
+        feat_map_name = 'fpn_inner_res5_2_sum'
+        fpn_inner_res5_2_sum = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+        feat_map_name = 'fpn_inner_res4_5_sum_lateral'
+        fpn_inner_res4_5_sum_lateral = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+        feat_map_name = 'fpn_inner_res3_3_sum_lateral'
+        fpn_inner_res3_3_sum_lateral = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+        feat_map_name = 'fpn_inner_res2_2_sum_lateral'
+        fpn_inner_res2_2_sum_lateral = workspace.FetchBlob(core.ScopedName(feat_map_name)).squeeze()
+
+        feat_map=[fpn_res5_2_sum,fpn_res4_5_sum,fpn_res3_3_sum,fpn_res2_2_sum,
+                  fpn_inner_res5_2_sum,fpn_inner_res4_5_sum_lateral,
+                  fpn_inner_res3_3_sum_lateral,fpn_inner_res2_2_sum_lateral]
+    else:
+        feat_map=[]
 
     if cfg.TEST.BBOX_REG:
         # Apply bounding-box regression deltas

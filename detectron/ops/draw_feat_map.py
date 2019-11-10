@@ -1,17 +1,14 @@
 import pickle,os
 import numpy as np
 import matplotlib.pyplot as plt
-
-
-
 def vis_feat_map():
     """
     visualize feature map of each image
     """
 
-    file_path = '../test/mask_rcnn_r50_2x/test/coco_2014_val/generalized_rcnn/feat_map'
+    file_path = '../test/mask_rcnn_DSFPN_r50_2x/test/coco_2014_val/generalized_rcnn/feat_map'
 
-    output_path = '../test/mask_rcnn_r50_2x/test/coco_2014_val/generalized_rcnn/feat_map_vis'
+    output_path = '../test/mask_rcnn_DSFPN_r50_2x/test/coco_2014_val/generalized_rcnn/feat_map_vis'
     if not os.path.exists(output_path):
         os.mkdir(output_path)
 
