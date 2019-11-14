@@ -62,7 +62,7 @@ def im_detect_all(model, im, box_proposals, timers=None):
 
     timers['im_detect_bbox'].tic()
     if cfg.TEST.BBOX_AUG.ENABLED:
-        scores, boxes, im_scale = im_detect_bbox_aug(model, im, box_proposals)
+        scores, boxes, im_scale,featture_map = im_detect_bbox_aug(model, im, box_proposals)
     else:
         scores, boxes, im_scale,featture_map = im_detect_bbox(
             model, im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE, boxes=box_proposals
@@ -311,7 +311,7 @@ def im_detect_bbox_aug(model, im, box_proposals=None):
     # Compute detections for the original image (identity transform) last to
     # ensure that the Caffe2 workspace is populated with blobs corresponding
     # to the original image on return (postcondition of im_detect_bbox)
-    scores_i, boxes_i, im_scale_i = im_detect_bbox(
+    scores_i, boxes_i, im_scale_i,_ = im_detect_bbox(
         model, im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE, boxes=box_proposals
     )
     add_preds_t(scores_i, boxes_i)
@@ -340,7 +340,7 @@ def im_detect_bbox_aug(model, im, box_proposals=None):
             'Coord heur {} not supported'.format(cfg.TEST.BBOX_AUG.COORD_HEUR)
         )
 
-    return scores_c, boxes_c, im_scale_i
+    return scores_c, boxes_c, im_scale_i,None
 
 
 def im_detect_bbox_hflip(
@@ -358,7 +358,7 @@ def im_detect_bbox_hflip(
     else:
         box_proposals_hf = None
 
-    scores_hf, boxes_hf, im_scale = im_detect_bbox(
+    scores_hf, boxes_hf, im_scale,_ = im_detect_bbox(
         model, im_hf, target_scale, target_max_size, boxes=box_proposals_hf
     )
 
@@ -379,7 +379,7 @@ def im_detect_bbox_scale(
             model, im, target_scale, target_max_size, box_proposals=box_proposals
         )
     else:
-        scores_scl, boxes_scl, _ = im_detect_bbox(
+        scores_scl, boxes_scl, _,_ = im_detect_bbox(
             model, im, target_scale, target_max_size, boxes=box_proposals
         )
     return scores_scl, boxes_scl

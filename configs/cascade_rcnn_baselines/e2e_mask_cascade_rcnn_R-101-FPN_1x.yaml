@@ -4,9 +4,10 @@ MODEL:
   NUM_CLASSES: 81
   FASTER_RCNN: True
   MASK_ON: True
-  CASCADE_ON: False
-  CLS_AGNOSTIC_BBOX_REG: False  # default: False
-NUM_GPUS: 8
+  CASCADE_ON: True
+  CLS_AGNOSTIC_BBOX_REG: True  # default: False
+  DECOUPLE_CLS_REG: False
+NUM_GPUS: 1
 SOLVER:
   WEIGHT_DECAY: 0.0001
   LR_POLICY: steps_with_decay
@@ -19,7 +20,7 @@ FPN:
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
 FAST_RCNN:
-  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_head
+  ROI_BOX_HEAD: fast_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   ROI_XFORM_METHOD: RoIAlign
   ROI_XFORM_RESOLUTION: 7
   ROI_XFORM_SAMPLING_RATIO: 2
@@ -31,15 +32,15 @@ MRCNN:
   ROI_XFORM_SAMPLING_RATIO: 2  # default 0
   DILATION: 1  # default 2
   CONV_INIT: MSRAFill  # default GaussianFill
-  AT_STAGE: 1
+  AT_STAGE: 3
 CASCADE_RCNN:
-  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head
+  ROI_BOX_HEAD: cascade_rcnn_heads.add_roi_2mlp_head #add_roi_2mlp_decouple_head #add_roi_2mlp_head
   NUM_STAGE: 3
   TEST_STAGE: 3
   TEST_ENSEMBLE: True
 TRAIN:
   WEIGHTS: ./pretrained_model/R-101.pkl
-  DATASETS: ('coco_2014_train', 'coco_2014_valminusminival')
+  DATASETS: ('coco_2014_train',)
   SCALES: (800,)
   MAX_SIZE: 1333
   BATCH_SIZE_PER_IM: 512
