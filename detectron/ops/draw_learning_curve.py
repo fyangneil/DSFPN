@@ -43,17 +43,23 @@ def draw_curve():
     plt.plot(iter_num, APbbox_list, 'r--')
 
     file_path = '/media/fanyang/C/data/coco/evaluate_results/mask_rcnn_1x'
+    file = os.path.join(file_path, '10ktrain_v1.pkl')
+    with open(file, 'rb') as f:
+        APbbox_list = pickle.load(f)
+    plt.plot(iter_num, APbbox_list, 'b')
+
+
     file = os.path.join(file_path, 'minival.pkl')
     with open(file, 'rb') as f:
         APbbox_list = pickle.load(f)
     plt.plot(iter_num, APbbox_list, 'b--')
 
-    plt.legend(['train-DSFPN','val-DSFPN','val-FPN'])
-    plt.xlabel('iterations')
-    plt.ylabel('APbbox')
-    plt.ticklabel_format(axis='x', style='sci',scilimits=[0,0],useMathText=True)
 
-    # plt.show()
+    plt.legend(['train-DSFPN','val-DSFPN','train-FPN','val-FPN'],fontsize=12)
+    plt.xlabel('iterations',fontsize=12)
+    plt.ylabel('APbbox',fontsize=12)
+    plt.ticklabel_format(axis='x', style='sci',scilimits=[0,0],useMathText=True)
+    plt.gca().yaxis.grid(True)    # plt.show()
     plt.savefig(save_file,bbox_inches = 'tight',
     pad_inches = 0)
 
